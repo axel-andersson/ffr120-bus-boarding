@@ -7,3 +7,11 @@ def plot_crowd():
 if __name__ == "__main__":
     main()
 
+def apply_attraction(x,y,x_dest, y_dest, w_at):
+
+    F_at_x = x_dest - x
+    F_at_y = y_dest - y
+
+    return F_at_x*w_at, F_at_y*w_at
+
+
