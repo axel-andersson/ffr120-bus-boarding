@@ -81,18 +81,3 @@ def rotate(x, y, theta):
     new_x = new_positions[0]
     new_y = new_positions[1]
     return new_x, new_y
-
-
-splits = 7
-x = np.array([0, 1, 2, 3])
-y = np.array([0, 0, 0, 0])
-
-for _ in range(splits):
-    angle = 2 * np.pi / splits
-    x, y = rotate(x, y, angle)
-    plt.scatter(x, y)
-
-plt.xlim((-5, 5))
-plt.ylim((-5, 5))
-plt.grid()
-plt.show()
