@@ -1,14 +1,17 @@
 import numpy as np
 
 
-def f_attractor(agent_state: np.array, attractor_positions: np.array) -> np.array:
+def f_attractor(agent_state: np.array, attractor_position: np.array) -> np.array:
     """
     Gets the force depending on the desired attractor
 
     :agent_state: Current agent state [x, y, phi] (NP Array)
-    :attractor_positions: Positions of all attractors [[x0, y0], [x1, y1]...] (NP Array)
+    :attractor_positions: Positions of all attractors [x_at, y_at] (NP Array)
+    :returns: the force vector generated from the attractor point
     """
-    pass
+    f_at = attractor_position - agent_state[:2]
+    
+    return f_at
 
 
 def f_walls(agent_state: np.array, walls: np.array) -> np.array:
