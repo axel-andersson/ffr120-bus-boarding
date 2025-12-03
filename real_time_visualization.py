@@ -3,8 +3,8 @@ from agent import MovementAgent
 import numpy as np
 
 
-def to_window_coordinates(r, arena_size, window_size):
-    return r / arena_size * window_size + window_size / 2
+def win_coords(r, arena_size, window_size):
+    return r / arena_size * window_size
 
 
 def base_agent_blob(
@@ -17,10 +17,10 @@ def base_agent_blob(
 ):
     dummy_size = 0.3
     canvas.create_oval(
-        to_window_coordinates(a.x - dummy_size / 2, arena_width, window_width),
-        to_window_coordinates(a.y - dummy_size / 2, arena_height, window_height),
-        to_window_coordinates(a.x + dummy_size / 2, arena_width, window_width),
-        to_window_coordinates(a.y + dummy_size / 2, arena_height, window_height),
+        win_coords(a.x - dummy_size / 2, arena_width, window_width),
+        win_coords(a.y - dummy_size / 2, arena_height, window_height),
+        win_coords(a.x + dummy_size / 2, arena_width, window_width),
+        win_coords(a.y + dummy_size / 2, arena_height, window_height),
         outline="#00C0C0",
         fill="#00C0C0",
     )
@@ -38,10 +38,10 @@ def move_agent_blob(
     dummy_size = 0.3
     canvas.coords(
         blob,
-        to_window_coordinates(a.x - dummy_size / 2, arena_width, window_width),
-        to_window_coordinates(a.y - dummy_size / 2, arena_height, window_height),
-        to_window_coordinates(a.x + dummy_size / 2, arena_width, window_width),
-        to_window_coordinates(a.y + dummy_size / 2, arena_height, window_height),
+        win_coords(a.x - dummy_size / 2, arena_width, window_width),
+        win_coords(a.y - dummy_size / 2, arena_height, window_height),
+        win_coords(a.x + dummy_size / 2, arena_width, window_width),
+        win_coords(a.y + dummy_size / 2, arena_height, window_height),
     )
 
 
@@ -55,14 +55,14 @@ def base_agent_arrow(
 ):
 
     velocity_scale = 1
-    end_x = np.cos(a.angle) * a.v * velocity_scale
-    end_y = np.sin(a.angle) * a.v * velocity_scale
+    end_x = a.x + np.cos(a.angle) * a.v * velocity_scale
+    end_y = a.y + np.sin(a.angle) * a.v * velocity_scale
 
     canvas.create_line(
-        to_window_coordinates(a.x, arena_width, window_width),
-        to_window_coordinates(a.y, arena_height, window_height),
-        to_window_coordinates(end_x, arena_width, window_width),
-        to_window_coordinates(end_y, arena_height, window_height),
+        win_coords(a.x, arena_width, window_width),
+        win_coords(a.y, arena_height, window_height),
+        win_coords(end_x, arena_width, window_width),
+        win_coords(end_y, arena_height, window_height),
         fill="#0000ff",
         width=2,
         arrow=LAST,
@@ -79,15 +79,15 @@ def move_agent_arrow(
     arena_height,
 ):
     velocity_scale = 1
-    end_x = np.cos(a.angle) * a.v * velocity_scale
-    end_y = np.sin(a.angle) * a.v * velocity_scale
+    end_x = a.x + np.cos(a.angle) * a.v * velocity_scale
+    end_y = a.y + np.sin(a.angle) * a.v * velocity_scale
 
     canvas.coords(
         arrow,
-        to_window_coordinates(a.x, arena_width, window_width),
-        to_window_coordinates(a.y, arena_height, window_height),
-        to_window_coordinates(end_x, arena_width, window_width),
-        to_window_coordinates(end_y, arena_height, window_height),
+        win_coords(a.x, arena_width, window_width),
+        win_coords(a.y, arena_height, window_height),
+        win_coords(end_x, arena_width, window_width),
+        win_coords(end_y, arena_height, window_height),
     )
 
 
@@ -105,12 +105,12 @@ def base_wall(
     y1 = wall_position[1][1]
 
     canvas.create_line(
-        to_window_coordinates(x0, arena_width, window_width),
-        to_window_coordinates(y0, arena_height, window_height),
-        to_window_coordinates(x1, arena_width, window_width),
-        to_window_coordinates(y1, arena_height, window_height),
+        win_coords(x0, arena_width, window_width),
+        win_coords(y0, arena_height, window_height),
+        win_coords(x1, arena_width, window_width),
+        win_coords(y1, arena_height, window_height),
         width=3,
-        fill="#808080"
+        fill="#808080",
     )
 
 
@@ -125,7 +125,7 @@ def base_wall(
 # Dummy state
 #
 
-test_agent = MovementAgent(0, 0, 0)
+test_agent = MovementAgent(1, 1, 0)
 test_wall = np.array([[2, 0], [2, 2]])
 
 
