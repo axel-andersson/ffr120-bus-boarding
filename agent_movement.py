@@ -1,4 +1,5 @@
 import numpy as np
+from agent import MovementAgent
 import geometry
 
 
@@ -15,13 +16,64 @@ def f_attractor(agent_state: np.array, attractor_position: np.array) -> np.array
     return f_at
 
 
-def f_walls(agent_state: np.array, walls: np.array) -> np.array:
+def f_walls(a: MovementAgent, walls: np.array) -> np.array:
     """
     Gets the force depending on the walls in the environment
 
-    :agent_state: Current agent state [x, y, phi] (NP Array)
+    :a: Current agent state [x, y, phi] (NP Array)
     :walls: Positions of all walls [[[x0, y0], [x1, y1]], ...] (NP Array)
     """
+
+    temp_box_width = 0.5
+    temp_box_length = 4
+
+    walls_in_range = filter_walls(
+        x=a.x,
+        y=a.y,
+        phi=a.angle,
+        box_width=temp_box_width,
+        box_length=temp_box_length,
+        walls=walls,
+    )
+
+    # Normals CCW to (x0, y0) -> (x1, y1)
+    raw_normals = wall_normals(walls_in_range)
+
+    # Get adjusted normals and distances to agents
+    # (On the same side of wall as agent)
+    flat_walls = walls.flatten("C")
+    x0 = flat_walls[0::4]
+    y0 = flat_walls[1::4]
+    wall_count = x0.size
+
+    adjusted_normals = []
+    for i in range(wall_count):
+        wall_start_to_agent = np.array([a.x, a.y]) - np.array([x0, y0])
+        n = raw_normals[i]
+
+        if np.dot(wall_start_to_agent, n) > 0:
+            m = -n / np.linalg.norm(n)
+            adjusted_normals.append(m)
+
+        else:
+            m = n / np.linalg.norm(n)
+            adjusted_normals.append(m)
+
+    # Calculate actual forces
+    force_sum = np.zeros((2, 1))
+    v_3d = np.array([a.v * np.cos(a.angle), a.v + np.sin(a.angle)])
+    for n in adjusted_normals:
+        n_3d = np.array([n[0], n[1], 0])
+
+        # Equation (5) in Pelecjano, Allbeck & Badler
+        a = np.cross(n_3d, v_3d)
+        b = np.cross(a, n_3d)
+
+        f_3d = b / np.linalg.norm(b)
+        f_2d = f_3d[:, :1]
+        force_sum += f_2d
+
+    return force_sum
 
 
 def wall_normals(walls: np.array):
@@ -45,7 +97,6 @@ def wall_normals(walls: np.array):
     return normals
 
 
-  
 def filter_walls(x, y, phi, box_width, box_length, walls):
     """
     Filters walls to only include those inside the rectangle of influence for an agent.
