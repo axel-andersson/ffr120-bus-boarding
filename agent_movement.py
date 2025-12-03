@@ -11,18 +11,39 @@ def f_attractor(agent_state: np.array, attractor_position: np.array) -> np.array
     :returns: the force vector generated from the attractor point
     """
     f_at = attractor_position - agent_state[:2]
-    
+
     return f_at
 
 
 def f_walls(agent_state: np.array, walls: np.array) -> np.array:
     """
-    Gets the force depending on the desired attractor
+    Gets the force depending on the walls in the environment
 
     :agent_state: Current agent state [x, y, phi] (NP Array)
     :walls: Positions of all walls [[[x0, y0], [x1, y1]], ...] (NP Array)
     """
-    pass
+
+
+def wall_normals(walls: np.array):
+    """
+    Gets the normal vector for a wall. If a wall is defined
+    as points A and B, the vector will point 90 deg CCW from
+    the vector from A to B
+    :walls: Positions of all walls [[[x0, y0], [x1, y1]], ...] (NP Array)
+    """
+
+    # Prepare wall data format
+    flat_walls = walls.flatten("C")
+    x1 = flat_walls[0::4]
+    y1 = flat_walls[1::4]
+    x2 = flat_walls[2::4]
+    y2 = flat_walls[3::4]
+
+    rotation_matrix = np.array([[0, -1], [1, 0]])
+    vectors = np.array([x2 - x1, y2 - y1])
+    normals = rotation_matrix @ vectors
+    return normals
+
 
   
 def filter_walls(x, y, phi, box_width, box_length, walls):
@@ -94,9 +115,11 @@ def filter_walls(x, y, phi, box_width, box_length, walls):
             filtered_walls.append(walls[i])
 
     return np.array(filtered_walls)
-  
-  
-def f_other_agents(agent_state: np.array, agent_positions: np.array, Di_length: float, Di_width: float) -> np.array:
+
+
+def f_other_agents(
+    agent_state: np.array, agent_positions: np.array, Di_length: float, Di_width: float
+) -> np.array:
     """
     Gets the force depending on the other agents in the recttangle of influence
 
@@ -109,21 +132,21 @@ def f_other_agents(agent_state: np.array, agent_positions: np.array, Di_length: 
     # --- agent velocity ---
     v_agent = agent_state[2]
     phi_agent = agent_state[3]
-    vx_agent = v_agent*np.cos(phi_agent)
-    vy_agent = v_agent*np.sin(phi_agent)
+    vx_agent = v_agent * np.cos(phi_agent)
+    vy_agent = v_agent * np.sin(phi_agent)
     agent_dir = np.array([vx_agent, vy_agent])
 
     # --- basis vectors ---
-    fwd = agent_dir / np.linalg.norm(agent_dir) # unit vector in forward direction
-    side = np.array([-fwd[1], fwd[0]])          # vector orthogonal to the forward direction
+    fwd = agent_dir / np.linalg.norm(agent_dir)  # unit vector in forward direction
+    side = np.array([-fwd[1], fwd[0]])  # vector orthogonal to the forward direction
 
     # --- vector from agent to all others ---
-    vectors_to_others = agent_positions[:, :2] - agent_state[:2] 
+    vectors_to_others = agent_positions[:, :2] - agent_state[:2]
     dist_to_others = np.linalg.norm(vectors_to_others, axis=1)
 
     # --- projections ---
-    forward_dist = vectors_to_others @ fwd      # projection on forward direction 
-    side_dist = vectors_to_others @ side        # projection on the side direction
+    forward_dist = vectors_to_others @ fwd  # projection on forward direction
+    side_dist = vectors_to_others @ side  # projection on the side direction
 
     # --- filtering inside influence rectangle ---
     in_front     = forward_dist > 0              # only forward, not behind
@@ -135,23 +158,23 @@ def f_other_agents(agent_state: np.array, agent_positions: np.array, Di_length: 
     neighbours = agent_positions[mask]
 
     if len(neighbours) == 0:
-        return np.array([0.0, 0.0])   # no force
+        return np.array([0.0, 0.0])  # no force
 
     # --- neighbour velocities ---
     v_neighbours = neighbours[:, 2]
     phi_neighbours = neighbours[:, 3]
-    vx_neighbours = v_neighbours*np.cos(phi_neighbours)
-    vy_neighbours = v_neighbours*np.sin(phi_neighbours)
+    vx_neighbours = v_neighbours * np.cos(phi_neighbours)
+    vy_neighbours = v_neighbours * np.sin(phi_neighbours)
     neighbours_dir = np.stack([vx_neighbours, vy_neighbours], axis=1)
 
     # tangential forces
     vecs = vectors_to_others[idx]
     vecs_3d = np.hstack([vecs, np.zeros((len(vecs), 1))])
-    agent_dir_3d  = np.array([agent_dir[0], agent_dir[1], 0.0])
-    num = np.cross(np.cross(vecs_3d, agent_dir_3d), vecs_3d)   
-    den = np.linalg.norm(num, axis=1, keepdims=True) + 1e-9  
+    agent_dir_3d = np.array([agent_dir[0], agent_dir[1], 0.0])
+    num = np.cross(np.cross(vecs_3d, agent_dir_3d), vecs_3d)
+    den = np.linalg.norm(num, axis=1, keepdims=True) + 1e-9
     tangentials_3d = num / den
-    tangentials = tangentials_3d[:, :2]  
+    tangentials = tangentials_3d[:, :2]
 
     # --- weights ---
     d = dist_to_others[idx]
