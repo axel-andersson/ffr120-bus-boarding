@@ -129,8 +129,8 @@ def f_other_agents(agent_state: np.array, agent_positions: np.array, Di_length: 
     in_front     = forward_dist > 0              # only forward, not behind
     within_long  = forward_dist < Di_length      # within the length of rectangle 
     within_width = np.abs(side_dist) < (Di_width/2)  # within width of rectangle 
-    not_too_close = dist_to_others > (Di_length - 1.5)  
-    mask = in_front & within_long & within_width & not_too_close # masking-conditions
+    #not_too_close = dist_to_others > (Di_length - 1.5)  
+    mask = in_front & within_long & within_width # masking-conditions
     idx = np.where(mask)[0]
     neighbours = agent_positions[mask]
 
@@ -166,19 +166,51 @@ def f_other_agents(agent_state: np.array, agent_positions: np.array, Di_length: 
     return f_others
 
 
-def f_repulsion_other_agents(agent_state: np.array, agent_positions: np.array, box_width, box_length):
+def f_repulsion_other_agents(agent_state: np.array, agent_radius: float, agent_epsilon: float, agent_positions: np.array,others_radius: np.array):
     """
-    Gets the repulsion force depending on the other agents
+    Computes repulsion force from nearby agents (overlap zone only)
 
-    :agent_state: Current agent state [x, y, v, phi] (NP Array)
-    :agent_positions: All agent positions [[x0, y0, v0, phi0], [x1, y1, v1, phi1], ...] (NP Array)
-    :box_width: Width of rectangle of influence
-    :box_length: Length of rectangle of influence
+    :agent_state: Current agent state [x, y, v, phi] (np Array)
+    :agnet_radius: the radius of the agent (np array)
+    :agent_epsilon: the personal space threshold for the agent
+    :others_radius: the radius of all agents (np array) [r0, r1, r2, .....]
+    :agent_positions: All agent positions [[x0, y0, v0, phi0], [x1, y1, v1, phi1], ...] (np Array)
 
     """
 
+    # position of agent i
+    pos_i = agent_state[:2]
+
+    # vector from others to agent i
+    vectors = pos_i - agent_positions[:, :2]               
+    distances = np.linalg.norm(vectors, axis=1)           
+
+    # repulsion threshold for each other agent
+    repulsion_distances = agent_radius + others_radius + agent_epsilon
+
+    # mask only overlapping agents
+    mask = distances < repulsion_distances
+    if not np.any(mask):
+        return np.array([0.0, 0.0])
     
+    # filter
+    vectors = vectors[mask] # (pi-pj)
+    distances = distances[mask] # dji
+    repulsion_distances = repulsion_distances[mask] # ri + eps + rj
+
+    # compute repulsion
+    overlap = repulsion_distances - distances # ri + eps + rj - dji
+    magnitudes = overlap / (distances + 1e-9)
+
+    # normalize direction vectors
+    directions = vectors / (distances[:, None] + 1e-9)
+
+    # final repulsion forces for each agent
+    forces = directions * magnitudes[:, None]
+
+    # total repulsion 
+    return np.sum(forces, axis=0)
 
 
-
+def f_repulsion_walls(agent_state: np.array, agent_radius: float, agent_epsilon: float, agent_positions: np.array,others_radius: np.array):
     pass
