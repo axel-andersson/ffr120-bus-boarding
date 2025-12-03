@@ -109,7 +109,8 @@ def base_wall(
         to_window_coordinates(y0, arena_height, window_height),
         to_window_coordinates(x1, arena_width, window_width),
         to_window_coordinates(y1, arena_height, window_height),
-        width=4,
+        width=3,
+        fill="#808080"
     )
 
 
@@ -125,7 +126,7 @@ def base_wall(
 #
 
 test_agent = MovementAgent(0, 0, 0)
-test_wall = np.array([[5, 0], [5, 5]])
+test_wall = np.array([[2, 0], [2, 2]])
 
 
 #
@@ -146,5 +147,6 @@ canvas.place(x=10, y=10, height=window_size, width=window_size)
 # Draw dummy state
 base_agent_blob(canvas, test_agent, window_size, window_size, arena_size, arena_size)
 base_agent_arrow(canvas, test_agent, window_size, window_size, arena_size, arena_size)
+base_wall(canvas, test_wall, window_size, window_size, arena_size, arena_size)
 
 tk.mainloop()  # Release animation handle (close window to finish).
