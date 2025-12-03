@@ -17,7 +17,7 @@ def f_attractor(agent_state: np.array, attractor_position: np.array) -> np.array
 
 def f_walls(agent_state: np.array, walls: np.array) -> np.array:
     """
-    Gets the force depending on the desired attractor
+    Gets the force depending on the walls in the environment
 
     :agent_state: Current agent state [x, y, phi] (NP Array)
     :walls: Positions of all walls [[[x0, y0], [x1, y1]], ...] (NP Array)
