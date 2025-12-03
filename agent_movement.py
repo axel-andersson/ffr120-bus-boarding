@@ -235,5 +235,88 @@ def f_repulsion_other_agents(agent_state: np.array, agent_radius: float, agent_e
     return np.sum(forces, axis=0)
 
 
-def f_repulsion_walls(agent_state: np.array, agent_radius: float, agent_epsilon: float, agent_positions: np.array,others_radius: np.array):
-    pass
+def f_repulsion_walls(agent_state: np.array, agent_radius: float, agent_epsilon: float, box_width: float, box_length: float,walls: np.array) -> np.array:
+    """
+    computes the repulsion forces from the walls that are close 
+
+    :x: Agent's x-position
+    :y: Agent's y-position
+    :box_width: Width of rectangle of influence
+    :box_length: Length of rectangle of influence
+    :walls: Positions of all walls [[[x0, y0], [x1, y1]], ...] (NP Array)
+    """
+
+    x, y, _, phi = agent_state
+    pos = np.array([x, y])
+
+    # filter walls to only close by
+    candidate_walls = filter_walls(x, y, phi, box_width, box_length, walls)
+    if candidate_walls.size == 0:
+        return np.array([0.0, 0.0])
+
+
+    F_total = np.array([0.0, 0.0])
+    personal_radius = agent_radius + agent_epsilon
+
+    # loop over relevant walls
+    for wall in candidate_walls:
+        A = wall[0]  # [x0, y0]
+        B = wall[1]  # [x1, y1]
+        AB = B - A
+
+        # closest point on wall:
+        AP = pos - A
+        wall_squared_length = np.dot(AB, AB)
+        proj = np.dot(AP, AB) /(wall_squared_length + 1e-12) # projection of position to wall
+        proj_cut = np.clip(proj, 0.0, 1.0) # must be between 0= A and B = 1
+        closest = A + proj_cut * AB      # closest point on wall
+        vec = pos - closest              # the vector from the closest point on wall to the agent
+        dist = np.linalg.norm(vec)       # distance used for the repulsion force
+
+        # only consider tgose within personal radius
+        if dist >= personal_radius:
+            continue  # no repulsion from wall
+
+        # normalised normal
+        n_wi = vec / (dist + 1e-9)
+
+        # eq 11
+        overlap = personal_radius - dist
+        magnitude = overlap / (dist + 1e-9)
+        F_R_wall = magnitude * n_wi
+
+        F_total += F_R_wall
+
+    return F_total
+
+
+def f_repulsion(agent_state: np.array, agent_radius: float, agent_epsilon: float, agent_positions: np.array, others_radius: np.array, walls: np.array, box_width: float, box_length: float, lam_if_walls: float = 0.3, lam_default: float = 1.0 ) -> np.array:
+
+    # repulsion from other agents
+    F_agents = f_repulsion_other_agents(
+        agent_state,
+        agent_radius,
+        agent_epsilon,
+        agent_positions,
+        others_radius
+    )
+
+    # repulsion from walls
+    F_walls = f_repulsion_walls(
+        agent_state,
+        agent_radius,
+        agent_epsilon,
+        box_width,
+        box_length,
+        walls
+    )
+
+    # set lambda: decrease agent-repulsion if wall repulsion exists
+    if np.linalg.norm(F_walls) > 0.0:
+        lam = lam_if_walls   
+    else:
+        lam = lam_default    
+
+    F_total = F_walls + lam * F_agents
+    return F_total
+
