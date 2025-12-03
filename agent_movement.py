@@ -121,7 +121,7 @@ def f_other_agents(
     agent_state: np.array, agent_positions: np.array, Di_length: float, Di_width: float
 ) -> np.array:
     """
-    Gets the force depending on the desired attractor
+    Gets the force depending on the other agents in the recttangle of influence
 
     :agent_state: Current agent state [x, y, v, phi] (NP Array)
     :agent_positions: All agent positions [[x0, y0, v0, phi0], [x1, y1, v1, phi1], ...] (NP Array)
@@ -187,3 +187,21 @@ def f_other_agents(
     f_others = np.sum(forces, axis=0)
 
     return f_others
+
+
+def f_repulsion_other_agents(agent_state: np.array, agent_positions: np.array, box_width, box_length):
+    """
+    Gets the repulsion force depending on the other agents
+
+    :agent_state: Current agent state [x, y, v, phi] (NP Array)
+    :agent_positions: All agent positions [[x0, y0, v0, phi0], [x1, y1, v1, phi1], ...] (NP Array)
+    :box_width: Width of rectangle of influence
+    :box_length: Length of rectangle of influence
+
+    """
+
+    
+
+
+
+    pass
