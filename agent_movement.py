@@ -7,7 +7,7 @@ def f_attractor(agent_state: np.array, attractor_position: np.array) -> np.array
     """
     Gets the force depending on the desired attractor
 
-    :agent_state: Current agent state [x, y, phi] (NP Array)
+    :agent_state: Current agent state [x, y, v, phi]
     :attractor_positions: Positions of all attractors [x_at, y_at] (NP Array)
     :returns: the force vector generated from the attractor point
     """
@@ -276,11 +276,8 @@ def f_repulsion_other_agents(agent_state: np.array, agent_radius: float, agent_e
     overlap = repulsion_distances - distances # ri + eps + rj - dji
     magnitudes = overlap / (distances + 1e-9)
 
-    # normalize direction vectors
-    directions = vectors / (distances[:, None] + 1e-9)
-
     # final repulsion forces for each agent
-    forces = directions * magnitudes[:, None]
+    forces = vectors * (magnitudes[:, None])  
 
     # total repulsion 
     return np.sum(forces, axis=0)
@@ -341,7 +338,7 @@ def f_repulsion_walls(agent_state: np.array, agent_radius: float, agent_epsilon:
     return F_total
 
 
-def f_repulsion(agent_state: np.array, agent_radius: float, agent_epsilon: float, agent_positions: np.array, others_radius: np.array, walls: np.array, box_width: float, box_length: float, lam_if_walls: float = 0.3, lam_default: float = 1.0 ) -> np.array:
+def f_repulsion(agent_state: np.array, agent_radius: float, agent_epsilon: float, agent_positions: np.array, others_radius: np.array, walls: np.array, box_length: float, box_width: float, lam_if_walls: float = 0.3, lam_default: float = 1.0 ) -> np.array:
 
     # repulsion from other agents
     F_agents = f_repulsion_other_agents(
