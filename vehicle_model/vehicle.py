@@ -1,3 +1,6 @@
+import matplotlib.pyplot as plt
+
+
 class Vehicle:
     """
     Helper class for handling state of vehicle
@@ -18,6 +21,9 @@ class VehicleWalls:
     def __init__(self, points):
         pass
 
+    def draw(ax: plt.Axes):
+        pass
+
 
 class VehicleDoors:
     """
@@ -25,6 +31,9 @@ class VehicleDoors:
     """
 
     def __init__(self, point, width):
+        pass
+
+    def draw(ax: plt.Axes):
         pass
 
 
@@ -36,6 +45,9 @@ class PassengerSeat:
     def __init__(self):
         pass
 
+    def draw(ax: plt.Axes):
+        pass
+
 
 class PassengerSeatUnit:
     """
@@ -45,6 +57,9 @@ class PassengerSeatUnit:
     def __init__(self):
         pass
 
+    def draw(ax: plt.Axes):
+        pass
+
 
 class Handrail:
     """
@@ -52,6 +67,9 @@ class Handrail:
     """
 
     def __init__(self):
+        pass
+
+    def draw(ax: plt.Axes):
         pass
 
 
@@ -76,4 +94,4 @@ class GlobalNode:
 
 # Things that need to be solved:
 # Rectangle merging
-# Global waypoints
+# Auto waypoint-categorization.
