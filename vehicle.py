@@ -27,9 +27,17 @@ class VehicleDoor:
         self.y = y
         self.width = width
         self.isOpen = False
+        self.x_vec = 1
+        self.y_vec = 0
 
-    def draw(ax: plt.Axes):
-        pass
+    def draw(self, ax: plt.Axes):
+        x0 = self.x - self.x_vec * self.width / 2
+        x1 = self.x + self.x_vec * self.width / 2
+        y0 = self.y - self.y_vec * self.width / 2
+        y1 = self.y + self.y_vec * self.width / 2
+
+        color = "#ceffc9" if self.isOpen else "#6c0909"
+        ax.plot([x0, x1], [y0, y1], color=color, lw=2)
 
 
 class VehicleWalls:
@@ -100,9 +108,14 @@ class VehicleWalls:
         wall_delta = end_point - start_point
         wall_vector = wall_delta / np.linalg.norm(wall_delta)
 
+        # Update door vector with wall info
+        door.x_vec = wall_vector[0]
+        door.y_vec = wall_vector[1]
+
         first_door_end = door_point - wall_vector * door.width / 2
         second_door_end = door_point + wall_vector * door.width / 2
 
+        # Check if door ends also overlap wall segment.
         if not point_line_intersects(
             first_door_end, self.wall_segments[intersection_index]
         ):
@@ -112,8 +125,6 @@ class VehicleWalls:
             second_door_end, self.wall_segments[intersection_index]
         ):
             raise "Door end doesn't intersect a wall segment."
-
-        # Check if door ends also overlap wall segment.
 
         # Get new segments and replace
         first_wall_segment = [start_point.tolist(), first_door_end.tolist()]
@@ -127,7 +138,6 @@ class VehicleWalls:
 
     def draw(self, ax: plt.Axes):
         for segment in self.wall_segments:
-            print(segment)
             x0 = segment[0][0]
             x1 = segment[1][0]
             y0 = segment[0][1]
@@ -210,12 +220,11 @@ class GlobalNode:
 
 
 vw = VehicleWalls([[0, 0], [10, 0], [10, 5], [0, 5]])
-print("Before:", vw.wall_segments)
 door = VehicleDoor("test", 7, 0, 2)
 vw.cut_out_door(door)
-print("After:", vw.wall_segments)
-
+door.isOpen = True
 ax = plt.gca()
 ax.set_aspect("equal")
 vw.draw(ax)
+door.draw(ax)
 plt.show()
