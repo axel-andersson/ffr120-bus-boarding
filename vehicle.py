@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle, Ellipse
 from geometry import point_line_intersects
 import numpy as np
 
@@ -150,11 +151,39 @@ class PassengerSeat:
     Helper class for a single passenger seat
     """
 
-    def __init__(self):
-        pass
+    def __init__(
+        self,
+        x,
+        y,
+        width,
+        height,
+    ):
+        """
+        Docstring for __init__
 
-    def draw(ax: plt.Axes):
-        pass
+        :param x: min x seat coordinate
+        :param y: min y seat coordinate
+        :param width: seat size in the x-direction
+        :param height: seat size in the y-direction
+        :param center_point: center point of seat [x, y]
+        """
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+
+    def draw(self, ax: plt.Axes):
+        rect = Rectangle(
+            (self.x, self.y), self.width, self.height, fc="#bcbcbc", ec="#3A3A3A"
+        )
+        ellipse = Ellipse(
+            (self.x + self.width / 2, self.y + self.width / 2),
+            self.width*0.9,
+            self.height*0.9,
+            fc="#dadada",
+        )
+        ax.add_patch(rect)
+        ax.add_patch(ellipse)
 
 
 class PassengerSeatUnit:
@@ -221,10 +250,15 @@ class GlobalNode:
 
 vw = VehicleWalls([[0, 0], [10, 0], [10, 5], [0, 5]])
 door = VehicleDoor("test", 7, 0, 2)
+seat1 = PassengerSeat(0, 0, 1, 1)
+
 vw.cut_out_door(door)
 door.isOpen = True
 ax = plt.gca()
 ax.set_aspect("equal")
+
 vw.draw(ax)
 door.draw(ax)
+seat1.draw(ax)
+
 plt.show()
