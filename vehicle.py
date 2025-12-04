@@ -1,18 +1,36 @@
 import matplotlib.pyplot as plt
-
-
-class Vehicle:
-    """
-    Helper class for handling state of vehicle
-    """
-
-    def __init__(self, points):
-        pass
+from geometry import point_line_intersects
+import numpy as np
 
 
 #
 # Vehicle geometry
 #
+class VehicleDoor:
+    """
+    Helper class for doors for vehicle
+    """
+
+    def __init__(self, id: str, x: float, y: float, width: float):
+        """
+        Create vehicle door
+
+        :param id: string id for door
+        :type id: str
+        :param position: Center position of door [x, y]
+        :param width: Width of door [m]
+        :type width: float
+        """
+
+        self.id = id
+        self.x = x
+        self.y = y
+        self.width = width
+
+    def draw(ax: plt.Axes):
+        pass
+
+
 class VehicleWalls:
     """
     Helper class for outer walls of vehicle
@@ -54,7 +72,45 @@ class VehicleWalls:
         segments.append(segment)
 
         self.wall_segments = segments
-        self.door_segments = []
+
+    def cut_out_door(self, door: VehicleDoor):
+
+        door_point = np.array([door.x, door.y])
+
+        # Check for intersections
+        intersection_index = None
+        for i, segment in enumerate(self.wall_segments):
+            if point_line_intersects(door_point, segment):
+                intersection_index = i
+                break
+
+        if intersection_index == None:
+            raise "Door doesn't intersect a wall segment."
+
+        # Find points for new segments
+        segment_before = self.wall_segments[intersection_index - 1]
+        segment_after = self.wall_segments[
+            (intersection_index + 1) % len(self.wall_segments)
+        ]
+
+        start_point = np.array(segment_before[1])
+        end_point = np.array(segment_after[0])
+
+        wall_delta = end_point - start_point
+        wall_vector = wall_delta / np.norm(wall_delta)
+
+        first_door_end = door_point - wall_vector * door.width / 2
+        second_door_end = door_point + wall_vector * door.width / 2
+
+        # Get new segments and replace
+        first_wall_segment = [start_point.tolist(), first_door_end.tolist()]
+        second_wall_segment = [second_door_end.tolist(), end_point.tolist()]
+
+        self.wall_segments.pop(intersection_index)
+
+        # Inserts happen BEFORE specified indices
+        self.wall_segments.insert(intersection_index, second_wall_segment)
+        self.wall_segments.insert(intersection_index, first_wall_segment)
 
     def draw(self, ax: plt.Axes):
         for segment in self.wall_segments:
@@ -64,18 +120,6 @@ class VehicleWalls:
             y0 = segment[0][1]
             y1 = segment[1][1]
             ax.plot([x0, x1], [y0, y1], color="#a0a0a0", lw=3)
-
-
-class VehicleDoors:
-    """
-    Helper class for doors for vehicle
-    """
-
-    def __init__(self, name, position, width):
-        pass
-
-    def draw(ax: plt.Axes):
-        pass
 
 
 class PassengerSeat:
@@ -119,6 +163,15 @@ class Handrail:
 #
 
 
+class Vehicle:
+    """
+    Helper class for handling state of vehicle
+    """
+
+    def __init__(self, points):
+        pass
+
+
 class LocalNode:
     """
     Local nodes are navigation nodes that can be placed
@@ -144,7 +197,10 @@ class GlobalNode:
 
 
 vw = VehicleWalls([[0, 0], [10, 0], [10, 5], [0, 5]])
-print(vw.wall_segments)
+print("Before:", vw.wall_segments)
+door = VehicleDoor("test", 5, 0, 2)
+vw.cut_out_door(door)
+print("After:", vw.wall_segments)
 
 ax = plt.gca()
 ax.set_aspect("equal")
