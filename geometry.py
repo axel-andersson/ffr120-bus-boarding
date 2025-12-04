@@ -53,6 +53,33 @@ def line_intersection(line_1, line_2):
         return None
 
 
+def point_line_intersects(point, line):
+    x_A = line[0][0]
+    y_A = line[0][1]
+    x_B = line[1][0]
+    y_B = line[1][1]
+
+    x_C = point[0]
+    y_C = point[1]
+
+    # Point is on extended line ONLY if cross product is 0
+    if np.cross(np.array([x_A, y_A, 0]), np.array([x_C, y_C, 0])) != 0:
+        return False
+
+    # Point is on line if it can be paremetrized
+    delta_x = x_B - x_A
+    delta_y = y_B - y_A
+
+    if delta_x != 0:
+        t = (x_C - x_A) / delta_x
+        return 0 <= t and t <= 1
+    elif delta_y != 0:
+        t = (y_C - y_A) / delta_x
+        return 0 <= t and t <= 1
+    else:
+        raise "Line segment has no length."
+
+
 def translate(x, y, dx, dy):
     """
     Translates positions based on deltas
