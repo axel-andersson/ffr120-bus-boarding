@@ -63,7 +63,8 @@ def point_line_intersects(point, line):
     y_C = point[1]
 
     # Point is on extended line ONLY if cross product is 0
-    if np.cross(np.array([x_A, y_A, 0]), np.array([x_C, y_C, 0])) != 0:
+    cp = np.cross(np.array([x_A, y_A, 0]), np.array([x_C, y_C, 0]))
+    if np.all(cp != 0):
         return False
 
     # Point is on line if it can be paremetrized

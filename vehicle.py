@@ -26,6 +26,7 @@ class VehicleDoor:
         self.x = x
         self.y = y
         self.width = width
+        self.isOpen = False
 
     def draw(ax: plt.Axes):
         pass
@@ -97,7 +98,7 @@ class VehicleWalls:
         end_point = np.array(segment_after[0])
 
         wall_delta = end_point - start_point
-        wall_vector = wall_delta / np.norm(wall_delta)
+        wall_vector = wall_delta / np.linalg.norm(wall_delta)
 
         first_door_end = door_point - wall_vector * door.width / 2
         second_door_end = door_point + wall_vector * door.width / 2
