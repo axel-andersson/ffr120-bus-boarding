@@ -81,7 +81,7 @@ class VehicleWalls:
         segment = [start_point, end_point]
         segments.append(segment)
 
-        self.wall_segments = segments
+        self.segments = segments
 
     def cut_out_door(self, door: VehicleDoor):
 
@@ -89,7 +89,7 @@ class VehicleWalls:
 
         # Check for intersections
         intersection_index = None
-        for i, segment in enumerate(self.wall_segments):
+        for i, segment in enumerate(self.segments):
             if point_line_intersects(door_point, segment):
                 intersection_index = i
                 break
@@ -98,10 +98,8 @@ class VehicleWalls:
             raise "Door center doesn't intersect a wall segment."
 
         # Find points for new segments
-        segment_before = self.wall_segments[intersection_index - 1]
-        segment_after = self.wall_segments[
-            (intersection_index + 1) % len(self.wall_segments)
-        ]
+        segment_before = self.segments[intersection_index - 1]
+        segment_after = self.segments[(intersection_index + 1) % len(self.segments)]
 
         start_point = np.array(segment_before[1])
         end_point = np.array(segment_after[0])
@@ -117,13 +115,11 @@ class VehicleWalls:
         second_door_end = door_point + wall_vector * door.width / 2
 
         # Check if door ends also overlap wall segment.
-        if not point_line_intersects(
-            first_door_end, self.wall_segments[intersection_index]
-        ):
+        if not point_line_intersects(first_door_end, self.segments[intersection_index]):
             raise "Door end doesn't intersect a wall segment."
 
         if not point_line_intersects(
-            second_door_end, self.wall_segments[intersection_index]
+            second_door_end, self.segments[intersection_index]
         ):
             raise "Door end doesn't intersect a wall segment."
 
@@ -131,14 +127,14 @@ class VehicleWalls:
         first_wall_segment = [start_point.tolist(), first_door_end.tolist()]
         second_wall_segment = [second_door_end.tolist(), end_point.tolist()]
 
-        self.wall_segments.pop(intersection_index)
+        self.segments.pop(intersection_index)
 
         # Inserts happen BEFORE specified indices
-        self.wall_segments.insert(intersection_index, second_wall_segment)
-        self.wall_segments.insert(intersection_index, first_wall_segment)
+        self.segments.insert(intersection_index, second_wall_segment)
+        self.segments.insert(intersection_index, first_wall_segment)
 
     def draw(self, ax: plt.Axes):
-        for segment in self.wall_segments:
+        for segment in self.segments:
             x0 = segment[0][0]
             x1 = segment[1][0]
             y0 = segment[0][1]
@@ -217,8 +213,46 @@ class Vehicle:
     Helper class for handling state of vehicle
     """
 
-    def __init__(self, points):
-        pass
+    def __init__(self, walls, doors, seats):
+        self.walls = walls
+        for door in doors:
+            walls.cut_out_door(door)
+        self.doors = doors
+        self.seats = seats
+
+    def draw(self, ax):
+        self.walls.draw(ax)
+
+        for door in self.doors:
+            door.draw(ax)
+
+        for seat in self.seats:
+            seat.draw(ax)
+
+    def delimiting_coordinates(self):
+        x = []
+        y = []
+
+        # walls
+        segments = self.walls.segments
+        for segment in segments:
+            x.append(segment[0][0])
+            x.append(segment[1][0])
+
+            y.append(segment[0][1])
+            y.append(segment[1][1])
+
+        # seats
+        for seat in self.seats:
+            x.append(seat.x)
+            x.append(seat.x + seat.width)
+            y.append(seat.y)
+            y.append(seat.y + seat.height)
+
+        unique_x = np.unique(x)
+        unique_y = np.unique(y)
+
+        return unique_x, unique_y
 
 
 class LocalNode:
@@ -249,15 +283,16 @@ vw = VehicleWalls([[0, 0], [10, 0], [10, 5], [0, 5]])
 door = VehicleDoor("test", 7, 0, 2)
 seat1 = PassengerSeat(0, [0, 0], 1, 1, [0.5, 2.5])
 seat2 = PassengerSeat(1, [0, 1], 1, 1, [0.5, 2.5])
+seat3 = PassengerSeat(0, [0, 3], 1, 1, [0.5, 2.5])
+seat4 = PassengerSeat(1, [0, 4], 1, 1, [0.5, 2.5])
 
-vw.cut_out_door(door)
-door.isOpen = True
+v = Vehicle(vw, [door], [seat1, seat2, seat3, seat4])
+
 ax = plt.gca()
 ax.set_aspect("equal")
 
-vw.draw(ax)
-door.draw(ax)
-seat1.draw(ax, with_path_finding=True)
-seat2.draw(ax, with_path_finding=True)
+dlc = v.delimiting_coordinates()
+
+v.draw(ax)
 
 plt.show()
