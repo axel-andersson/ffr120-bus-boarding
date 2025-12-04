@@ -151,51 +151,48 @@ class PassengerSeat:
     Helper class for a single passenger seat
     """
 
-    def __init__(
-        self,
-        x,
-        y,
-        width,
-        height,
-    ):
+    def __init__(self, id, position, width, height, mounting_point):
         """
         Docstring for __init__
 
-        :param x: min x seat coordinate
-        :param y: min y seat coordinate
+        :parm id: id for identifying seat
+        :param position: min coordinates [x, y]
         :param width: seat size in the x-direction
         :param height: seat size in the y-direction
-        :param center_point: center point of seat [x, y]
+        :param mounting_point: point where passengers enter and exit chair [x, y]
         """
-        self.x = x
-        self.y = y
+        self.id = id
+        self.x = position[0]
+        self.y = position[1]
         self.width = width
         self.height = height
 
-    def draw(self, ax: plt.Axes):
+        self.mounting_point = mounting_point
+        self.isOccupied = False
+
+    def draw(self, ax: plt.Axes, with_path_finding=False):
+
+        if with_path_finding:
+            mounting_point = Ellipse(self.mounting_point, 0.2, 0.2, fc="#f540ff68")
+            ax.add_patch(mounting_point)
+            ax.plot(
+                [self.mounting_point[0], self.x + self.width / 2],
+                [self.mounting_point[1], self.y + self.width / 2],
+                color="#f540ff68",
+                lw=1,
+            )
+
         rect = Rectangle(
             (self.x, self.y), self.width, self.height, fc="#bcbcbc", ec="#3A3A3A"
         )
         ellipse = Ellipse(
             (self.x + self.width / 2, self.y + self.width / 2),
-            self.width*0.9,
-            self.height*0.9,
+            self.width * 0.9,
+            self.height * 0.9,
             fc="#dadada",
         )
         ax.add_patch(rect)
         ax.add_patch(ellipse)
-
-
-class PassengerSeatUnit:
-    """
-    Helper class for multiple passenger seats, e.g. a seat pair
-    """
-
-    def __init__(self):
-        pass
-
-    def draw(ax: plt.Axes):
-        pass
 
 
 class Handrail:
@@ -250,7 +247,8 @@ class GlobalNode:
 
 vw = VehicleWalls([[0, 0], [10, 0], [10, 5], [0, 5]])
 door = VehicleDoor("test", 7, 0, 2)
-seat1 = PassengerSeat(0, 0, 1, 1)
+seat1 = PassengerSeat(0, [0, 0], 1, 1, [0.5, 2.5])
+seat2 = PassengerSeat(1, [0, 1], 1, 1, [0.5, 2.5])
 
 vw.cut_out_door(door)
 door.isOpen = True
@@ -259,6 +257,7 @@ ax.set_aspect("equal")
 
 vw.draw(ax)
 door.draw(ax)
-seat1.draw(ax)
+seat1.draw(ax, with_path_finding=True)
+seat2.draw(ax, with_path_finding=True)
 
 plt.show()
