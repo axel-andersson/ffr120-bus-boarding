@@ -86,7 +86,7 @@ class VehicleWalls:
                 break
 
         if intersection_index == None:
-            raise "Door doesn't intersect a wall segment."
+            raise "Door center doesn't intersect a wall segment."
 
         # Find points for new segments
         segment_before = self.wall_segments[intersection_index - 1]
@@ -102,6 +102,18 @@ class VehicleWalls:
 
         first_door_end = door_point - wall_vector * door.width / 2
         second_door_end = door_point + wall_vector * door.width / 2
+
+        if not point_line_intersects(
+            first_door_end, self.wall_segments[intersection_index]
+        ):
+            raise "Door end doesn't intersect a wall segment."
+
+        if not point_line_intersects(
+            second_door_end, self.wall_segments[intersection_index]
+        ):
+            raise "Door end doesn't intersect a wall segment."
+
+        # Check if door ends also overlap wall segment.
 
         # Get new segments and replace
         first_wall_segment = [start_point.tolist(), first_door_end.tolist()]
@@ -199,7 +211,7 @@ class GlobalNode:
 
 vw = VehicleWalls([[0, 0], [10, 0], [10, 5], [0, 5]])
 print("Before:", vw.wall_segments)
-door = VehicleDoor("test", 5, 0, 2)
+door = VehicleDoor("test", 7, 0, 2)
 vw.cut_out_door(door)
 print("After:", vw.wall_segments)
 
