@@ -249,10 +249,55 @@ class Vehicle:
             y.append(seat.y)
             y.append(seat.y + seat.height)
 
+        # TODO: add rectangular obstacles
         unique_x = np.unique(x)
         unique_y = np.unique(y)
 
         return unique_x, unique_y
+
+    def area_rectangles(self):
+        delimiting_x, delimiting_y = self.delimiting_coordinates()
+        rectangles = []
+        for i in range(delimiting_x.size - 1):
+            for j in range(delimiting_y.size - 1):
+                x0 = delimiting_x[i]
+                x1 = delimiting_x[i + 1]
+                y0 = delimiting_y[j]
+                y1 = delimiting_y[j + 1]
+                rectangles.append([[x0, y0], [x1, y1]])
+        return rectangles
+
+    def standing_area_rectangles(self):
+        all_rectangles = self.area_rectangles()
+
+        filtered_rectangles = []
+        # Check if any part of seat intersects rectangle
+        for i in range(len(all_rectangles)):
+            rect = all_rectangles[i]
+            rect_min_x = rect[0][0]
+            rect_max_x = rect[1][0]
+            rect_min_y = rect[0][1]
+            rect_max_y = rect[1][1]
+
+            has_intersection = False
+            for seat in self.seats:
+                seat_min_x = seat.x
+                seat_max_x = seat.x + seat.width
+                seat_min_y = seat.y
+                seat_max_y = seat.y + seat.height
+
+                x_intersect = rect_min_x < seat_max_x and rect_max_x > seat_min_x
+                y_intersect = rect_min_y < seat_max_y and rect_max_y > seat_min_y
+
+                if x_intersect and y_intersect:
+                    has_intersection = True
+                    break
+
+            if not has_intersection:
+                filtered_rectangles.append(rect)
+        return filtered_rectangles
+
+        # TODO: add rectangular obstacles and check those
 
 
 class LocalNode:
@@ -281,18 +326,22 @@ class GlobalNode:
 
 vw = VehicleWalls([[0, 0], [10, 0], [10, 5], [0, 5]])
 door = VehicleDoor("test", 7, 0, 2)
-seat1 = PassengerSeat(0, [0, 0], 1, 1, [0.5, 2.5])
-seat2 = PassengerSeat(1, [0, 1], 1, 1, [0.5, 2.5])
-seat3 = PassengerSeat(0, [0, 3], 1, 1, [0.5, 2.5])
-seat4 = PassengerSeat(1, [0, 4], 1, 1, [0.5, 2.5])
+seat1 = PassengerSeat(0, [4, 0], 1, 1, [0.5, 2.5])
+seat2 = PassengerSeat(1, [4, 1], 1, 1, [0.5, 2.5])
+seat3 = PassengerSeat(0, [4, 3], 1, 1, [0.5, 2.5])
+seat4 = PassengerSeat(1, [4, 4], 1, 1, [0.5, 2.5])
 
 v = Vehicle(vw, [door], [seat1, seat2, seat3, seat4])
 
 ax = plt.gca()
 ax.set_aspect("equal")
 
-dlc = v.delimiting_coordinates()
-
 v.draw(ax)
+rects = v.standing_area_rectangles()
+for r in rects:
+    print(r)
+    vis_rect = Rectangle(r[0], r[1][0] - r[0][0], r[1][1] - r[0][1], ec="black")
+    ax.add_patch(vis_rect)
+
 
 plt.show()
