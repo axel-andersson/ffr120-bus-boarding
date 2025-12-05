@@ -267,7 +267,7 @@ class Vehicle:
                 rectangles.append([[x0, y0], [x1, y1]])
         return rectangles
 
-    def standing_area_rectangles(self):
+    def free_rectangle_fragments(self):
         all_rectangles = self.area_rectangles()
 
         filtered_rectangles = []
@@ -292,12 +292,66 @@ class Vehicle:
                 if x_intersect and y_intersect:
                     has_intersection = True
                     break
+            # TODO: add rectangular obstacles and check those
 
             if not has_intersection:
                 filtered_rectangles.append(rect)
         return filtered_rectangles
 
-        # TODO: add rectangular obstacles and check those
+    def standing_area_rectangles(self):
+        # assuming fragments are sorted in increasing x and then increasing y
+        fragments = self.free_rectangle_fragments()
+
+        y_merged_rects = []
+        for base_rect in fragments:
+
+            merged_rect = base_rect.copy()
+            while True:
+                # merge with rects with same x-coords and aligning y
+                filter_fn = lambda ir: (
+                    (
+                        lambda index, rect: rect[0][0]
+                        == base_rect[0][0]  # Left x match
+                        and rect[1][0] == base_rect[1][0]  # Right x match
+                        and rect[0][1] == base_rect[1][1]  # Edge-to-edge y
+                    )(*ir)
+                )
+
+                matches = list(filter(filter_fn, enumerate(fragments)))
+                if len(matches) == 0:
+                    break
+
+                match_index, match_rect = matches[0]
+                fragments.pop(match_index)
+                merged_rect[1][1] = match_rect[1][1]
+
+            y_merged_rects.append(merged_rect)
+
+        x_merged_rects = []
+        for base_rect in y_merged_rects:
+
+            merged_rect = base_rect.copy()
+            while True:
+                # merge with rects with same y-coords and aligning x
+                filter_fn = lambda ir: (
+                    (
+                        lambda index, rect: rect[0][1]
+                        == base_rect[0][1]  # Bottom y match
+                        and rect[1][1] == base_rect[1][1]  # Top y match
+                        and rect[0][0] == base_rect[1][0]  # Edge-to-edge x
+                    )(*ir)
+                )
+
+                matches = list(filter(filter_fn, enumerate(y_merged_rects)))
+                if len(matches) == 0:
+                    break
+
+                match_index, match_rect = matches[0]
+                y_merged_rects.pop(match_index)
+                merged_rect[1][0] = match_rect[1][0]
+
+            x_merged_rects.append(merged_rect)
+        return x_merged_rects
 
 
 class LocalNode:
@@ -323,7 +377,6 @@ class GlobalNode:
 # Dummy code for testing below:
 #
 
-
 vw = VehicleWalls([[0, 0], [10, 0], [10, 5], [0, 5]])
 door = VehicleDoor("test", 7, 0, 2)
 seat1 = PassengerSeat(0, [4, 0], 1, 1, [0.5, 2.5])
@@ -338,6 +391,7 @@ ax.set_aspect("equal")
 
 v.draw(ax)
 rects = v.standing_area_rectangles()
+
 for r in rects:
     print(r)
     vis_rect = Rectangle(r[0], r[1][0] - r[0][0], r[1][1] - r[0][1], ec="black")
