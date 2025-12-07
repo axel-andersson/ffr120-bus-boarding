@@ -191,6 +191,32 @@ class PassengerSeat:
         ax.add_patch(ellipse)
 
 
+class Obstacle:
+    """
+    Helper class for space-taking obstacles
+    """
+
+    def __init__(self, position, width, height):
+        """
+        Docstring for __init__
+
+        :param position: Position of min x and y
+        :param width: size in x
+        :param height: size in y
+        """
+
+        self.x = position[0]
+        self.y = position[1]
+        self.width = width
+        self.height = height
+
+    def draw(self, ax):
+        rect = Rectangle(
+            (self.x, self.y), self.width, self.height, fc="#343434", ec="#0A0A0A"
+        )
+        ax.add_patch(rect)
+
+
 class Handrail:
     """
     Handrails define where in the standing areas agents prefer to stand.
@@ -213,12 +239,13 @@ class Vehicle:
     Helper class for handling state of vehicle
     """
 
-    def __init__(self, walls, doors, seats):
+    def __init__(self, walls, doors, seats, obstacles):
         self.walls = walls
         for door in doors:
             walls.cut_out_door(door)
         self.doors = doors
         self.seats = seats
+        self.obstacles = obstacles
 
     def draw(self, ax):
         self.walls.draw(ax)
@@ -228,6 +255,9 @@ class Vehicle:
 
         for seat in self.seats:
             seat.draw(ax)
+
+        for obstacle in self.obstacles:
+            obstacle.draw(ax)
 
     def delimiting_coordinates(self):
         x = []
@@ -292,7 +322,19 @@ class Vehicle:
                 if x_intersect and y_intersect:
                     has_intersection = True
                     break
-            # TODO: add rectangular obstacles and check those
+
+            for obstacle in self.obstacles:
+                obs_min_x = obstacle.x
+                obs_max_x = obstacle.x + obstacle.width
+                obs_min_y = obstacle.y
+                obs_max_y = obstacle.y + obstacle.height
+
+                x_intersect = rect_min_x < obs_max_x and rect_max_x > obs_min_x
+                y_intersect = rect_min_y < obs_max_y and rect_max_y > obs_min_y
+
+                if x_intersect and y_intersect:
+                    has_intersection = True
+                    break
 
             if not has_intersection:
                 filtered_rectangles.append(rect)
@@ -384,13 +426,16 @@ seat2 = PassengerSeat(1, [4, 1], 1, 1, [0.5, 2.5])
 seat3 = PassengerSeat(0, [4, 3], 1, 1, [0.5, 2.5])
 seat4 = PassengerSeat(1, [4, 4], 1, 1, [0.5, 2.5])
 
-v = Vehicle(vw, [door], [seat1, seat2, seat3, seat4])
+obs = Obstacle([8, 2], 2, 3)
+
+v = Vehicle(vw, [door], [seat1, seat2, seat3, seat4], [obs])
 
 ax = plt.gca()
 ax.set_aspect("equal")
 
 v.draw(ax)
 rects = v.standing_area_rectangles()
+
 
 for r in rects:
     print(r)
