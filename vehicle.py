@@ -264,7 +264,7 @@ class StandingArea:
         self.width = rect[1][0] - rect[0][0]
         self.height = rect[1][1] - rect[0][1]
 
-        self.grid_courseness = 0.25  # Courseness of attractiveness grid
+        self.grid_courseness = 0.2  # Courseness of attractiveness grid
         x_eval_points, y_eval_points = self.init_position_ranges()
         self.x_eval_points = x_eval_points
         self.y_eval_points = y_eval_points
@@ -279,17 +279,16 @@ class StandingArea:
         min_y = self.y
         max_y = self.y + self.height
 
-        x_start = np.floor(min_x / self.grid_courseness) * self.grid_courseness
-        y_start = np.floor(min_y / self.grid_courseness) * self.grid_courseness
+        gc = self.grid_courseness
 
-        x_range = (
-            np.arange(x_start, max_x - self.grid_courseness, self.grid_courseness)
-            + 0.5 * self.grid_courseness
-        )
-        y_range = (
-            np.arange(y_start, max_y - self.grid_courseness, self.grid_courseness)
-            + 0.5 * self.grid_courseness
-        )
+        x_start = np.floor((min_x) / gc) * gc
+        y_start = np.floor((min_y) / gc) * gc 
+
+        x_end = np.floor(max_x / gc) * gc
+        y_end = np.floor(max_y / gc) * gc
+
+        x_range = np.arange(x_start, x_end, gc) + 0.5*gc
+        y_range = np.arange(y_start, y_end, gc) + 0.5*gc
 
         return x_range, y_range
 
@@ -307,6 +306,20 @@ class StandingArea:
                     attractiveness[i, j] = hr.get_attractiveness(point)
 
         return attractiveness.clip(0, 1)
+
+    def draw_attractiveness(self, ax):
+
+        gc = self.grid_courseness
+
+        for i in range(self.x_eval_points.size):
+            x0 = np.max([self.x_eval_points[i] - 0.5 * gc, self.x])
+            x1 = np.min([self.x_eval_points[i] + 0.5 * gc, self.x + self.width])
+            for j in range(self.y_eval_points.size):
+                y0 = np.max([self.y_eval_points[j] - 0.5 * gc, self.y])
+                y1 = np.min([self.y_eval_points[j] + 0.5 * gc, self.y + self.height])
+
+                rect = Rectangle((x0, y0), x1 - x0, y1 - y0, ec="#ff0000")
+                ax.add_patch(rect)
 
 
 #
@@ -346,6 +359,9 @@ class Vehicle:
 
         for handrail in self.handrails:
             handrail.draw(ax)
+
+        for sa in self.standing_areas:
+            sa.draw_attractiveness(ax)
 
     def delimiting_coordinates(self):
         x = []
@@ -530,12 +546,13 @@ ax.set_aspect("equal")
 
 v.draw(ax)
 rects = v.standing_area_rectangles()
-
+"""
 
 for r in rects:
     print(r)
     vis_rect = Rectangle(r[0], r[1][0] - r[0][0], r[1][1] - r[0][1], ec="black")
     ax.add_patch(vis_rect)
 
+"""
 
 plt.show()
