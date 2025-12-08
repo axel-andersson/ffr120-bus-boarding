@@ -303,15 +303,41 @@ class StandingArea:
                 y = self.y_eval_points[j]
                 point = np.array([x, y])
                 for hr in handrails:
-                    attractiveness[i, j] = hr.get_attractiveness(point)
+                    attractiveness[i, j] += hr.get_attractiveness(point)
 
         return attractiveness.clip(0, 1)
+
+    def passenger_repulsion(self, passenger_points):
+        x_grid_size = self.x_eval_points.size
+        y_grid_size = self.y_eval_points.size
+        repulsion = np.zeros((x_grid_size, y_grid_size))
+
+        CUTOFF = 1
+
+        for i in range(x_grid_size):
+            x = self.x_eval_points[i]
+            for j in range(y_grid_size):
+                y = self.y_eval_points[j]
+                eval_pt = np.array([x, y])
+                for pass_pt in passenger_points:
+                    d = np.linalg.norm(eval_pt - pass_pt)
+
+                    if d > CUTOFF:
+                        continue
+
+                    d_rel = d / CUTOFF
+
+                    repulsion[i, j] += np.exp(-3*d_rel**2)
+
+        return repulsion.clip(0, 1)
 
     def draw_attractiveness(self, ax):
 
         gc = self.grid_courseness
 
         max_value = 3
+
+        test = self.passenger_repulsion([[1, 4]])
 
         for i in range(self.x_eval_points.size):
             x0 = np.max([self.x_eval_points[i] - 0.5 * gc, self.x])
@@ -320,7 +346,7 @@ class StandingArea:
                 y0 = np.max([self.y_eval_points[j] - 0.5 * gc, self.y])
                 y1 = np.min([self.y_eval_points[j] + 0.5 * gc, self.y + self.height])
 
-                attractiveness = self.base_attractiveness[i][j]
+                attractiveness = test[i][j]
                 opacity = np.min([attractiveness / max_value, 1])
                 color = (1, 0, 0, opacity)
 
