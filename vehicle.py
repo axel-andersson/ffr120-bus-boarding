@@ -235,7 +235,7 @@ class Handrail:
         segment = self.get_segment()
         d = point_to_segment_distance(point, segment)
 
-        CUTOFF = 1
+        CUTOFF = 0.75
         if d > CUTOFF:
             return 0
 
@@ -282,13 +282,13 @@ class StandingArea:
         gc = self.grid_courseness
 
         x_start = np.floor((min_x) / gc) * gc
-        y_start = np.floor((min_y) / gc) * gc 
+        y_start = np.floor((min_y) / gc) * gc
 
         x_end = np.floor(max_x / gc) * gc
         y_end = np.floor(max_y / gc) * gc
 
-        x_range = np.arange(x_start, x_end, gc) + 0.5*gc
-        y_range = np.arange(y_start, y_end, gc) + 0.5*gc
+        x_range = np.arange(x_start, x_end, gc) + 0.5 * gc
+        y_range = np.arange(y_start, y_end, gc) + 0.5 * gc
 
         return x_range, y_range
 
@@ -311,6 +311,8 @@ class StandingArea:
 
         gc = self.grid_courseness
 
+        max_value = 3
+
         for i in range(self.x_eval_points.size):
             x0 = np.max([self.x_eval_points[i] - 0.5 * gc, self.x])
             x1 = np.min([self.x_eval_points[i] + 0.5 * gc, self.x + self.width])
@@ -318,7 +320,12 @@ class StandingArea:
                 y0 = np.max([self.y_eval_points[j] - 0.5 * gc, self.y])
                 y1 = np.min([self.y_eval_points[j] + 0.5 * gc, self.y + self.height])
 
-                rect = Rectangle((x0, y0), x1 - x0, y1 - y0, ec="#ff0000")
+                attractiveness = self.base_attractiveness[i][j]
+                opacity = np.min([attractiveness / max_value, 1])
+                color = (1, 0, 0, opacity)
+
+                rect = Rectangle((x0, y0), x1 - x0, y1 - y0, fc=color)
+
                 ax.add_patch(rect)
 
 
