@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle, Ellipse
-from geometry import point_line_intersects
+from geometry import point_line_intersects, point_to_segment_distance
 import numpy as np
 
 
@@ -222,11 +222,91 @@ class Handrail:
     Handrails define where in the standing areas agents prefer to stand.
     """
 
-    def __init__(self):
-        pass
+    def __init__(self, start, end):
+        self.start_x = start[0]
+        self.start_y = start[1]
+        self.end_x = end[0]
+        self.end_y = end[1]
 
-    def draw(ax: plt.Axes):
-        pass
+    def get_segment(self):
+        return np.array([[self.start_x, self.start_y], [self.end_x, self.end_y]])
+
+    def get_attractiveness(self, point):
+        segment = self.get_segment()
+        d = point_to_segment_distance(point, segment)
+
+        CUTOFF = 1
+        if d > CUTOFF:
+            return 0
+
+        # Arbitrairy formula to make passengers prefer to stand near handrails
+        # in range 1 to 0
+        return np.sqrt((CUTOFF - d) / CUTOFF)
+
+    def draw(self, ax: plt.Axes):
+        ax.plot(
+            [self.start_x, self.end_x],
+            [self.start_y, self.end_y],
+            "--",
+            color="#fff820",
+            lw=1,
+        )
+
+
+class StandingArea:
+    """
+    Docstring for StandingArea
+    """
+
+    def __init__(self, rect, handrails):
+        self.x = rect[0][0]
+        self.y = rect[0][1]
+        self.width = rect[1][0] - rect[0][0]
+        self.height = rect[1][1] - rect[0][1]
+
+        self.grid_courseness = 0.25  # Courseness of attractiveness grid
+        x_eval_points, y_eval_points = self.init_position_ranges()
+        self.x_eval_points = x_eval_points
+        self.y_eval_points = y_eval_points
+
+        attractiveness = self.init_base_attractiveness(handrails)
+        self.base_attractiveness = attractiveness
+
+    def init_position_ranges(self):
+        min_x = self.x
+        max_x = self.x + self.width
+
+        min_y = self.y
+        max_y = self.y + self.height
+
+        x_start = np.floor(min_x / self.grid_courseness) * self.grid_courseness
+        y_start = np.floor(min_y / self.grid_courseness) * self.grid_courseness
+
+        x_range = (
+            np.arange(x_start, max_x - self.grid_courseness, self.grid_courseness)
+            + 0.5 * self.grid_courseness
+        )
+        y_range = (
+            np.arange(y_start, max_y - self.grid_courseness, self.grid_courseness)
+            + 0.5 * self.grid_courseness
+        )
+
+        return x_range, y_range
+
+    def init_base_attractiveness(self, handrails):
+        x_grid_size = self.x_eval_points.size
+        y_grid_size = self.y_eval_points.size
+        attractiveness = np.zeros((x_grid_size, y_grid_size))
+
+        for i in range(x_grid_size):
+            x = self.x_eval_points[i]
+            for j in range(y_grid_size):
+                y = self.y_eval_points[j]
+                point = np.array([x, y])
+                for hr in handrails:
+                    attractiveness[i, j] = hr.get_attractiveness(point)
+
+        return attractiveness.clip(0, 1)
 
 
 #
@@ -239,13 +319,18 @@ class Vehicle:
     Helper class for handling state of vehicle
     """
 
-    def __init__(self, walls, doors, seats, obstacles):
+    def __init__(self, walls, doors, seats, obstacles, handrails):
         self.walls = walls
         for door in doors:
             walls.cut_out_door(door)
         self.doors = doors
         self.seats = seats
         self.obstacles = obstacles
+        self.handrails = handrails
+
+        standing_area_rects = self.standing_area_rectangles()
+        standing_areas = [StandingArea(rect, handrails) for rect in standing_area_rects]
+        self.standing_areas = standing_areas
 
     def draw(self, ax):
         self.walls.draw(ax)
@@ -258,6 +343,9 @@ class Vehicle:
 
         for obstacle in self.obstacles:
             obstacle.draw(ax)
+
+        for handrail in self.handrails:
+            handrail.draw(ax)
 
     def delimiting_coordinates(self):
         x = []
@@ -279,7 +367,13 @@ class Vehicle:
             y.append(seat.y)
             y.append(seat.y + seat.height)
 
-        # TODO: add rectangular obstacles
+        # rectangular obstacles
+        for obstacle in self.seats:
+            x.append(obstacle.x)
+            x.append(obstacle.x + obstacle.width)
+            y.append(obstacle.y)
+            y.append(obstacle.y + obstacle.height)
+
         unique_x = np.unique(x)
         unique_y = np.unique(y)
 
@@ -421,14 +515,15 @@ class GlobalNode:
 
 vw = VehicleWalls([[0, 0], [10, 0], [10, 5], [0, 5]])
 door = VehicleDoor("test", 7, 0, 2)
-seat1 = PassengerSeat(0, [4, 0], 1, 1, [0.5, 2.5])
-seat2 = PassengerSeat(1, [4, 1], 1, 1, [0.5, 2.5])
-seat3 = PassengerSeat(0, [4, 3], 1, 1, [0.5, 2.5])
-seat4 = PassengerSeat(1, [4, 4], 1, 1, [0.5, 2.5])
+seat1 = PassengerSeat(0, [4.1, 0], 1, 1, [0.5, 2.5])
+seat2 = PassengerSeat(1, [4.1, 1], 1, 1, [0.5, 2.5])
+seat3 = PassengerSeat(0, [4.1, 3], 1, 1, [0.5, 2.5])
+seat4 = PassengerSeat(1, [4.1, 4], 1, 1, [0.5, 2.5])
 
 obs = Obstacle([8, 2], 2, 3)
+hr = Handrail([1, 0], [1, 5])
 
-v = Vehicle(vw, [door], [seat1, seat2, seat3, seat4], [obs])
+v = Vehicle(vw, [door], [seat1, seat2, seat3, seat4], [obs], [hr])
 
 ax = plt.gca()
 ax.set_aspect("equal")
