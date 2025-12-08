@@ -887,7 +887,7 @@ v = SimSpace(vw, [door], [seat1, seat2, seat3, seat4], [obs], [hr])
 
 v.update_standing_attractiveness(np.array([[1, 4]]))
 
-start_pos = np.array([9, 0.5])
+start_pos = np.array([2, 0.5])
 path_out, exit_door = v.get_path_out(start_pos)
 
 path_coords = np.array(path_out).T
