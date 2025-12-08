@@ -400,15 +400,168 @@ class StandingArea:
 
                 ax.add_patch(rect)
 
+    def get_rect(self):
+        return [[self.x, self.y], [self.x + self.width, self.y + self.height]]
+
+
+class InsideWaypoints:
+    def __init__(self, standing_areas, doors: list["VehicleDoor"]):
+        self.standing_areas = standing_areas
+        section_waypoints = self.get_area_waypoints()
+
+        section_count = len(standing_areas)
+
+        # Using looping and lists since n is small
+        codes = []
+        coordinates = []
+        codes_per_section = [[] for _ in range(section_count)]
+        door_codes = []
+        door_sections = []
+
+        for i, swp in enumerate(section_waypoints):
+            code = self.section_node_code(swp, i)
+            codes.append(code)
+            coordinates.append(swp[2])
+            codes_per_section[swp[0]].append(code)
+            codes_per_section[swp[1]].append(code)
+
+        for i, door in enumerate(doors):
+            print(door)
+            code = self.door_node_code(i)
+            codes.append(code)
+            coord = door.get_inside_waypoint()
+            coordinates.append(coord)
+
+            section = self.get_point_standing_area(coord)
+            door_codes.append(code)
+            door_sections.append(section)
+
+        self.codes = codes
+        self.coordinates = coordinates
+        self.codes_per_section = codes_per_section
+        self.door_codes = self.door_codes
+        self.door_sections = door_sections
+
+        # Create adjacency graph
+
+    def section_node_code(self, swp, index):
+        return f"section:{swp[0]}-{swp[1]}#{index}"
+
+    def door_node_code(self, index):
+        return f"door:inside#{index}"
+
+    def get_area_boundary_lines(self):
+        sas = self.standing_areas
+        areas = list(map(lambda v: v.get_rect(), sas))
+
+        lines = []
+        for i_area in range(len(areas)):
+            for j_area in range(i_area + 1, len(areas)):
+
+                area_1 = areas[i_area]
+                area_2 = areas[j_area]
+
+                x0_1, y0_1 = area_1[0]
+                x1_1, y1_1 = area_1[1]
+                x0_2, y0_2 = area_2[0]
+                x1_2, y1_2 = area_2[1]
+
+                x_overlap = max(x0_1, x0_2) <= min(x1_1, x1_2)
+                y_overlap = max(y0_1, y0_2) <= min(y1_1, y1_2)
+
+                # Top edge match
+                if y1_1 == y0_2 and x_overlap:
+                    y = y1_1
+                    x_start = max(x0_1, x0_2)
+                    x_end = min(x1_1, x1_2)
+                    segment = np.array([[x_start, y], [x_end, y]])
+                    lines.append((i_area, j_area, segment))
+                    continue
+
+                # Bottom edge match
+                if y0_1 == y1_2 and x_overlap:
+                    y = y0_1
+                    x_start = max(x0_1, x0_2)
+                    x_end = min(x1_1, x1_2)
+                    segment = np.array([[x_start, y], [x_end, y]])
+                    lines.append((i_area, j_area, segment))
+                    continue
+
+                # Right edge match
+                if x1_1 == x0_2 and y_overlap:
+                    x = x1_1
+                    y_start = max(y0_1, y0_2)
+                    y_end = min(y1_1, y1_2)
+                    segment = np.array([[x, y_start], [x, y_end]])
+                    lines.append((i_area, j_area, segment))
+                    continue
+
+                # Left edge matchs
+                if x0_1 == x1_2 and y_overlap:
+                    x = x0_1
+                    y_start = max(y0_1, y0_2)
+                    y_end = min(y1_1, y1_2)
+                    segment = np.array([[x, y_start], [x, y_end]])
+                    lines.append((i_area, j_area, segment))
+                    pass
+        return lines
+
+    def get_area_waypoints(self):
+        area_boundary_lines = self.get_area_boundary_lines()
+
+        MAX_WAYPOINT_SPACE = 0.5
+        waypoints = []
+        for i, j, segment in area_boundary_lines:
+            p0 = segment[0]
+            p1 = segment[1]
+            segment_length = np.linalg.norm(p1 - p0)
+
+            if segment_length <= 2 * MAX_WAYPOINT_SPACE:
+                point = (p0 + p1) / 2
+                waypoints.append((i, j, point))
+                continue
+
+            subdivision_count = int(np.ceil(segment_length / MAX_WAYPOINT_SPACE))
+            x_space = np.linspace(p0[0], p1[0], subdivision_count + 1)
+            y_space = np.linspace(p0[1], p1[1], subdivision_count + 1)
+
+            x_points = x_space[1:-1]
+            y_points = y_space[1:-1]
+            points = np.array([x_points, y_points]).T
+
+            for k in range(points.shape[0]):
+                point = points[k]
+                waypoints.append((i, j, point))
+
+        return waypoints
+
+    def get_point_standing_area(self, point):
+        for i in range(len(self.standing_areas)):
+            sa = self.standing_areas[i]
+
+            # Outside x?
+            if point[0] < sa.x or point[0] > sa.x + sa.width:
+                continue
+
+            # Outside y?
+            if point[1] < sa.y or point[1] > sa.y + sa.height:
+                continue
+
+            # Inside
+            return (i, sa)
+
+        # No match
+        return None
+
 
 #
 #
 #
 
 
-class Vehicle:
+class SimSpace:
     """
-    Helper class for handling state of vehicle
+§    Helper class for handling state of simulation space
     """
 
     def __init__(self, walls, doors, seats, obstacles, handrails):
@@ -424,8 +577,7 @@ class Vehicle:
         standing_areas = [StandingArea(rect, handrails) for rect in standing_area_rects]
         self.standing_areas = standing_areas
 
-        area_waypoints = self.get_area_waypoints()
-        self.global_waypoints = area_waypoints
+        waypoints = InsideWaypoints(standing_areas, doors)
 
     def draw(self, ax):
         self.walls.draw(ax)
@@ -445,8 +597,6 @@ class Vehicle:
     def draw_technical(self, ax):
         for door in self.doors:
             door.draw_technical(ax)
-        for gwp in self.global_waypoints:
-            ax.plot(gwp[2][0], gwp[2][1], "x", ms=8)
 
     def delimiting_coordinates(self):
         x = []
@@ -590,112 +740,9 @@ class Vehicle:
             x_merged_rects.append(merged_rect)
         return x_merged_rects
 
-    def get_point_standing_area(self, point):
-        for i in range(len(self.standing_areas)):
-            sa = self.standing_areas[i]
-
-            # Outside x?
-            if point[0] < sa.x or point[0] > sa.x + sa.width:
-                continue
-
-            # Outside y?
-            if point[1] < sa.y or point[1] > sa.y + sa.height:
-                continue
-
-            # Inside
-            return (i, sa)
-
-        # No match
-        return None
-
-    def get_area_boundary_lines(self):
-        areas = self.standing_area_rectangles().copy()
-
-        lines = []
-        for i_area in range(len(areas)):
-            for j_area in range(i_area + 1, len(areas)):
-
-                area_1 = areas[i_area]
-                area_2 = areas[j_area]
-
-                x0_1, y0_1 = area_1[0]
-                x1_1, y1_1 = area_1[1]
-                x0_2, y0_2 = area_2[0]
-                x1_2, y1_2 = area_2[1]
-
-                x_overlap = max(x0_1, x0_2) <= min(x1_1, x1_2)
-                y_overlap = max(y0_1, y0_2) <= min(y1_1, y1_2)
-
-                # Top edge match
-                if y1_1 == y0_2 and x_overlap:
-                    y = y1_1
-                    x_start = max(x0_1, x0_2)
-                    x_end = min(x1_1, x1_2)
-                    segment = np.array([[x_start, y], [x_end, y]])
-                    lines.append((i_area, j_area, segment))
-                    continue
-
-                # Bottom edge match
-                if y0_1 == y1_2 and x_overlap:
-                    y = y0_1
-                    x_start = max(x0_1, x0_2)
-                    x_end = min(x1_1, x1_2)
-                    segment = np.array([[x_start, y], [x_end, y]])
-                    lines.append((i_area, j_area, segment))
-                    continue
-
-                # Right edge match
-                if x1_1 == x0_2 and y_overlap:
-                    x = x1_1
-                    y_start = max(y0_1, y0_2)
-                    y_end = min(y1_1, y1_2)
-                    segment = np.array([[x, y_start], [x, y_end]])
-                    lines.append((i_area, j_area, segment))
-                    continue
-
-                # Left edge matchs
-                if x0_1 == x1_2 and y_overlap:
-                    x = x0_1
-                    y_start = max(y0_1, y0_2)
-                    y_end = min(y1_1, y1_2)
-                    segment = np.array([[x, y_start], [x, y_end]])
-                    lines.append((i_area, j_area, segment))
-                    pass
-        return lines
-
-    def get_area_waypoints(self):
-        area_boundary_lines = self.get_area_boundary_lines()
-
-        MAX_WAYPOINT_SPACE = 0.5
-        waypoints = []
-        for i, j, segment in area_boundary_lines:
-            p0 = segment[0]
-            p1 = segment[1]
-            segment_length = np.linalg.norm(p1 - p0)
-
-            if segment_length <= 2 * MAX_WAYPOINT_SPACE:
-                point = (p0 + p1) / 2
-                waypoints.append((i, j, point))
-                continue
-
-            subdivision_count = int(np.ceil(segment_length / MAX_WAYPOINT_SPACE))
-            x_space = np.linspace(p0[0], p1[0], subdivision_count + 1)
-            y_space = np.linspace(p0[1], p1[1], subdivision_count + 1)
-
-            x_points = x_space[1:-1]
-            y_points = y_space[1:-1]
-            points = np.array([x_points, y_points]).T
-
-            for k in range(points.shape[0]):
-                point = points[k]
-                waypoints.append((i, j, point))
-
-        return waypoints
-
     def update_standing_attractiveness(self, points):
         for sa in self.standing_areas:
             sa.set_attractiveness(points)
-
 
 
 # Things that need to be solved:
@@ -715,8 +762,9 @@ seat4 = PassengerSeat(1, [4.1, 4], 1, 1, [0.5, 2.5])
 
 obs = Obstacle([8, 2], 2, 3)
 hr = Handrail([1, 0], [1, 5])
+platform_line = [[0, -2], [10, -2]]
 
-v = Vehicle(vw, [door], [seat1, seat2, seat3, seat4], [obs], [hr])
+v = SimSpace(vw, [door], [seat1, seat2, seat3, seat4], [obs], [hr])
 
 v.update_standing_attractiveness(np.array([[1, 4]]))
 
