@@ -472,7 +472,6 @@ class InsideWaypoints:
                     adj[i].append([j, distance])
 
         self.adjacency = adj
-        print(adj)
 
     def section_node_code(self, swp, index):
         return f"section:{swp[0]}-{swp[1]}#{index}"
@@ -626,6 +625,42 @@ class InsideWaypoints:
 
         return distances, paths
 
+    def pathfind_exit(self, start_position):
+        start_segment = self.get_point_standing_area(start_position)
+        start_global_node_codes = self.codes_per_section[start_segment[0]]
+        start_indices = [self.codes.index(v) for v in start_global_node_codes]
+
+        exit_doors = self.door_codes
+        exit_door_indices = [self.codes.index(v) for v in exit_doors]
+
+        shortest_distance = float("inf")
+        shortest_path = []
+        overall_nearest_door = 0
+
+        for i in start_indices:
+            base_distances, paths = self.all_paths(i)
+            start_node_pos = self.coordinates[i]
+            extra_distance = np.linalg.norm(np.array(start_position) - start_node_pos)
+
+            total_distances = np.array(base_distances) + extra_distance
+
+            door_distances = []
+            for j in exit_door_indices:
+                door_dist = total_distances[j]
+                door_distances.append(door_dist)
+
+            min_distance_door = exit_door_indices[int(np.argmin(door_distances))]
+            min_distance = total_distances[min_distance_door]
+            min_path = paths[min_distance_door]
+
+            if min_distance < shortest_distance:
+                shortest_path = min_path
+                overall_nearest_door = min_distance_door
+
+        coordinates = [self.coordinates[i] for i in shortest_path]
+
+        return coordinates, overall_nearest_door
+
 
 #
 #
@@ -634,7 +669,7 @@ class InsideWaypoints:
 
 class SimSpace:
     """
-    §    Helper class for handling state of simulation space
+    Helper class for handling state of simulation space
     """
 
     def __init__(self, walls, doors, seats, obstacles, handrails):
@@ -651,6 +686,7 @@ class SimSpace:
         self.standing_areas = standing_areas
 
         waypoints = InsideWaypoints(standing_areas, doors)
+        self.inside_waypoints = waypoints
 
     def draw(self, ax):
         self.walls.draw(ax)
@@ -817,6 +853,16 @@ class SimSpace:
         for sa in self.standing_areas:
             sa.set_attractiveness(points)
 
+    def get_path_out(self, start_position):
+        """
+        Gets path from start position
+
+        Returns a list of waypoints to the door,
+        as well as the index of the door.
+        """
+
+        return self.inside_waypoints.pathfind_exit(start_position)
+
 
 # Things that need to be solved:
 # Auto waypoint-categorization.
@@ -841,10 +887,20 @@ v = SimSpace(vw, [door], [seat1, seat2, seat3, seat4], [obs], [hr])
 
 v.update_standing_attractiveness(np.array([[1, 4]]))
 
+start_pos = np.array([9, 0.5])
+path_out, exit_door = v.get_path_out(start_pos)
+
+path_coords = np.array(path_out).T
+
 ax = plt.gca()
 ax.set_aspect("equal")
 
 v.draw(ax)
 v.draw_technical(ax)
+
+ax.plot(
+    np.insert(path_coords[0], 0, start_pos[0]),
+    np.insert(path_coords[1], 0, start_pos[1]),
+)
 
 plt.show()
