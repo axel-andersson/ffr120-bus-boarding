@@ -598,6 +598,61 @@ class Vehicle:
         # No match
         return None
 
+    def get_area_boundary_lines(self):
+        areas = self.standing_area_rectangles().copy()
+
+        lines = []
+        for i_area in range(len(areas)):
+            for j_area in range(i_area + 1, len(areas)):
+
+                area_1 = areas[i_area]
+                area_2 = areas[j_area]
+
+                x0_1, y0_1 = area_1[0]
+                x1_1, y1_1 = area_1[1]
+                x0_2, y0_2 = area_2[0]
+                x1_2, y1_2 = area_2[1]
+
+                x_overlap = max(x0_1, x0_2) <= min(x1_1, x1_2)
+                y_overlap = max(y0_1, y0_2) <= min(y1_1, y1_2)
+
+                # Top edge match
+                if y1_1 == y0_2 and x_overlap:
+                    y = y1_1
+                    x_start = max(x0_1, x0_2)
+                    x_end = min(x1_1, x1_2)
+                    segment = np.array([[x_start, y], [x_end, y]])
+                    lines.append((i_area, j_area, segment))
+                    continue
+
+                # Bottom edge match
+                if y0_1 == y1_2 and x_overlap:
+                    y = y0_1
+                    x_start = max(x0_1, x0_2)
+                    x_end = min(x1_1, x1_2)
+                    segment = np.array([[x_start, y], [x_end, y]])
+                    lines.append((i_area, j_area, segment))
+                    continue
+
+                # Right edge match
+                if x1_1 == x0_2 and y_overlap:
+                    x = x1_1
+                    y_start = max(y0_1, y0_2)
+                    y_end = min(y1_1, y1_2)
+                    segment = np.array([[x, y_start], [x, y_end]])
+                    lines.append((i_area, j_area, segment))
+                    continue
+
+                # Left edge matchs
+                if x0_1 == x1_2 and y_overlap:
+                    x = x0_1
+                    y_start = max(y0_1, y0_2)
+                    y_end = min(y1_1, y1_2)
+                    segment = np.array([[x, y_start], [x, y_end]])
+                    lines.append((i_area, j_area, segment))
+                    pass
+        return lines
+
     def update_standing_attractiveness(self, points):
         for sa in self.standing_areas:
             sa.set_attractiveness(points)
@@ -638,6 +693,7 @@ hr = Handrail([1, 0], [1, 5])
 v = Vehicle(vw, [door], [seat1, seat2, seat3, seat4], [obs], [hr])
 
 v.update_standing_attractiveness(np.array([[1, 4]]))
+print(v.get_area_boundary_lines())
 
 ax = plt.gca()
 ax.set_aspect("equal")
