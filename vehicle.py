@@ -48,19 +48,24 @@ class VehicleDoor:
         a = np.array([[0, -1], [1, 0]])
         return pos + WP_DIST * a @ vec
 
-    def get_outside_waypoint(self):
+    def get_outside_waypoints(self):
         WP_DIST = 1
         pos = np.array([self.x, self.y])
         vec = np.array([self.x_vec, self.y_vec])
 
         a = np.array([[0, 1], [-1, 0]])
-        return pos + WP_DIST * a @ vec
+        center_waypoint = pos + WP_DIST * a @ vec
+        side_waypoint_1 = center_waypoint - self.width * vec / 2
+        side_waypoint_2 = center_waypoint + self.width * vec / 2
+        return [center_waypoint, side_waypoint_1, side_waypoint_2]
 
     def draw_technical(self, ax: plt.Axes):
-        outside_wp = self.get_outside_waypoint()
+        outside_wps = self.get_outside_waypoints()
         inside_wp = self.get_inside_waypoint()
 
-        ax.plot(outside_wp[0], outside_wp[1], "x", ms=8)
+        ax.plot(outside_wps[0][0], outside_wps[0][1], "x", ms=8)
+        ax.plot(outside_wps[1][0], outside_wps[1][1], "x", ms=8)
+        ax.plot(outside_wps[2][0], outside_wps[2][1], "x", ms=8)
         ax.plot(inside_wp[0], inside_wp[1], "x", ms=8)
 
 
@@ -419,7 +424,8 @@ class Vehicle:
         standing_areas = [StandingArea(rect, handrails) for rect in standing_area_rects]
         self.standing_areas = standing_areas
 
-        waypoints = self.get_area_waypoints()
+        area_waypoints = self.get_area_waypoints()
+        self.global_waypoints = area_waypoints
 
     def draw(self, ax):
         self.walls.draw(ax)
@@ -439,6 +445,8 @@ class Vehicle:
     def draw_technical(self, ax):
         for door in self.doors:
             door.draw_technical(ax)
+        for gwp in self.global_waypoints:
+            ax.plot(gwp[2][0], gwp[2][1], "x", ms=8)
 
     def delimiting_coordinates(self):
         x = []
@@ -688,19 +696,6 @@ class Vehicle:
         for sa in self.standing_areas:
             sa.set_attractiveness(points)
 
-
-class LocalNode:
-    """
-    Local nodes are navigation nodes that can be placed
-    on a straight line segment between two other nodes and that
-    only connect to nodes on that line segment, not counting seats.
-    """
-
-
-class GlobalNode:
-    """
-    Global nodes are navigation nodes that connect multiple areas.
-    """
 
 
 # Things that need to be solved:
