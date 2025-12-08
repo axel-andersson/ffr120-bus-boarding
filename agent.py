@@ -6,7 +6,7 @@ class MovementAgent:
 
 
     # ─── Initialization ─────────────────────────────
-    def __init__(self, x, y, angle, radius, epsilon, box_length, box_width, target: np.array, dt=0.1):
+    def __init__(self, x, y, angle, radius, epsilon, box_length, box_width, dt=0.1):
         # Force weights
         self.attractor_weight = 5
         self.wall_weight = 3
@@ -20,7 +20,17 @@ class MovementAgent:
         self.last_force = np.array([0, 0])
         self.a = 0.3  # constant acceleration
         self.dt = dt
-        self.target = target
+        self.target_queue = np.array([
+            [ 5.0,        0.0       ],
+            [ 3.11745,    3.90915   ],
+            [-1.11260,    4.87464   ],
+            [-4.50485,    2.16942   ],
+            [-4.50485,   -2.16942   ],
+            [-1.11260,   -4.87464   ],
+            [ 3.11745,   -3.90915   ]
+        ])
+        self.target = self.target_queue[0]
+        self.target_queue = self.target_queue[1:]
 
         # Movement modifiers
         self.inertia_factor = 0.2
@@ -55,6 +65,18 @@ class MovementAgent:
     # ─── Agent state as array ───────────────────────
     def state(self):
         return np.array([self.x, self.y, self.v, self.angle])
+    
+
+    def set_target(self):
+
+        n = len(self.target_queue)
+
+        if n == 0:
+            return self.target, self.target_queue
+
+        self.target = self.target_queue[0]
+        self.target_queue = self.target_queue[1:]
+        return self.target, self.target_queue
 
 
     # ─── Calculate movement and repulsion forces ────
@@ -146,13 +168,20 @@ class MovementAgent:
 
 
     # ─── Main update per timestep ───────────────────
-    def update(self, walls: np.array, agents: list["MovementAgent"]):
+    def update(self, walls: np.array, agents: list["MovementAgent"], ):
         pos = np.array([self.x, self.y])
         to_target = self.target - pos
         dist = np.linalg.norm(to_target)
 
-        # Adjust v_max based on braking distance
-        if dist < self.brake_radius:
+        if dist < 0.3:
+            self.target, self.target_queue = self.set_target()
+            to_target = self.target - pos
+            dist = np.linalg.norm(to_target)
+
+        is_final_target = (len(self.target_queue) == 0)
+
+        # Adjust v_max based on braking distance, if current target is the final attraction point
+        if dist < self.brake_radius and is_final_target:
             factor = dist / self.brake_radius
             self.v_max = max(self.v_min, self.v_far * factor)
         else:
@@ -160,7 +189,7 @@ class MovementAgent:
 
         # Stop if at goal
         stop_radius = self.radius + 0.1
-        if dist < stop_radius:
+        if dist < stop_radius and is_final_target:
             self.v = 0.0
             self.last_force = np.array([0.0, 0.0])
             return
@@ -200,6 +229,7 @@ class MovementAgent:
         # Update heading
         if np.linalg.norm(move_vec) > 1e-6:
             self.angle = np.arctan2(move_vec[1], move_vec[0])
+
 
         # Store force for inertia
         self.last_force = F_to_vec
