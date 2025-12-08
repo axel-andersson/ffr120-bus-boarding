@@ -81,6 +81,29 @@ def point_line_intersects(point, line):
         raise "Line segment has no length."
 
 
+import numpy as np
+
+
+def point_to_segment_distance(point, line):
+
+    a = line[0]
+    b = line[1]
+    a_to_point = point - a
+    a_to_b = b - a
+    ab_len_sq = np.dot(a_to_b, a_to_b)
+
+    # Handle if line is point
+    if ab_len_sq == 0:
+        return np.linalg.norm(point - a)
+
+    t = np.dot(a_to_point, a_to_b) / ab_len_sq
+    t = np.clip(t, 0, 1)
+
+    closest = a + t * a_to_b
+
+    return np.linalg.norm(point - closest)
+
+
 def translate(x, y, dx, dy):
     """
     Translates positions based on deltas
