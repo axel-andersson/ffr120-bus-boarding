@@ -410,13 +410,14 @@ class InsideWaypoints:
         section_waypoints = self.get_area_waypoints()
 
         section_count = len(standing_areas)
+        door_count = len(doors)
 
         # Using looping and lists since n is small
         codes = []
         coordinates = []
         codes_per_section = [[] for _ in range(section_count)]
         door_codes = []
-        door_sections = []
+        sections_by_code = []
 
         for i, swp in enumerate(section_waypoints):
             code = self.section_node_code(swp, i)
@@ -424,6 +425,7 @@ class InsideWaypoints:
             coordinates.append(swp[2])
             codes_per_section[swp[0]].append(code)
             codes_per_section[swp[1]].append(code)
+            sections_by_code.append([swp[0], swp[1]])
 
         for i, door in enumerate(doors):
             print(door)
@@ -433,16 +435,41 @@ class InsideWaypoints:
             coordinates.append(coord)
 
             section = self.get_point_standing_area(coord)
+            codes_per_section[section[0]].append(code)
+            sections_by_code.append([section[0]])
             door_codes.append(code)
-            door_sections.append(section)
 
         self.codes = codes
         self.coordinates = coordinates
         self.codes_per_section = codes_per_section
-        self.door_codes = self.door_codes
-        self.door_sections = door_sections
+        self.door_codes = door_codes
 
         # Create adjacency graph
+        adj = [[] for _ in range(len(codes))]
+
+        # Handle section nodes
+        for i in range(len(codes)):
+            code = codes[i]
+            base_in_sections = sections_by_code[i]
+
+            # See which other codes have exactly 1 section match
+            # (1 match == sharing one section)
+            # (2 matches == between same 2 sections)
+            for j in range(len(codes)):
+                if i == j:
+                    continue
+
+                compare_in_sections = sections_by_code[j]
+
+                match_count = 0
+                for section in base_in_sections:
+                    if section in compare_in_sections:
+                        match_count += 1
+
+                if match_count == 1:
+                    adj[i].append(j)
+
+        self.adjacency = adj
 
     def section_node_code(self, swp, index):
         return f"section:{swp[0]}-{swp[1]}#{index}"
@@ -561,7 +588,7 @@ class InsideWaypoints:
 
 class SimSpace:
     """
-§    Helper class for handling state of simulation space
+    §    Helper class for handling state of simulation space
     """
 
     def __init__(self, walls, doors, seats, obstacles, handrails):
