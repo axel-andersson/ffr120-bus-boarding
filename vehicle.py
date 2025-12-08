@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle, Ellipse
 from geometry import point_line_intersects, point_to_segment_distance
 import numpy as np
+import heapq
 
 
 #
@@ -467,9 +468,11 @@ class InsideWaypoints:
                         match_count += 1
 
                 if match_count == 1:
-                    adj[i].append(j)
+                    distance = float(np.linalg.norm(coordinates[i] - coordinates[j]))
+                    adj[i].append([j, distance])
 
         self.adjacency = adj
+        print(adj)
 
     def section_node_code(self, swp, index):
         return f"section:{swp[0]}-{swp[1]}#{index}"
@@ -579,6 +582,49 @@ class InsideWaypoints:
 
         # No match
         return None
+
+    def all_paths(self, start_index):
+
+        graph = self.adjacency
+
+        # Implementation of Dijkstra's with path lists
+        n = len(graph)
+        distances = [float("inf")] * n
+        previous = [None] * n
+        distances[start_index] = 0
+
+        pq = [(0, start_index)]  # (distance, node)
+
+        while pq:
+            current_dist, u = heapq.heappop(pq)
+
+            if current_dist > distances[u]:
+                continue
+
+            for v, weight in graph[u]:
+                new_dist = current_dist + weight
+                if new_dist < distances[v]:
+                    distances[v] = new_dist
+                    previous[v] = u
+                    heapq.heappush(pq, (new_dist, v))
+
+        # Build full paths for every node
+        paths = []
+        for end in range(n):
+            path = []
+            at = end
+            while at is not None:
+                path.append(at)
+                at = previous[at]
+            path.reverse()
+
+            # If unreachable, return empty path
+            if path[0] != start_index:
+                paths.append([])
+            else:
+                paths.append(path)
+
+        return distances, paths
 
 
 #
