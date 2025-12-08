@@ -556,6 +556,24 @@ class Vehicle:
             x_merged_rects.append(merged_rect)
         return x_merged_rects
 
+    def get_point_standing_area(self, point):
+        for i in range(len(self.standing_areas)):
+            sa = self.standing_areas[i]
+
+            # Outside x?
+            if point[0] < sa.x or point[0] > sa.x + sa.width:
+                continue
+
+            # Outside y?
+            if point[1] < sa.y or point[1] > sa.y + sa.height:
+                continue
+
+            # Inside
+            return (i, sa)
+
+        # No match
+        return None
+
     def update_standing_attractiveness(self, points):
         for sa in self.standing_areas:
             sa.set_attractiveness(points)
