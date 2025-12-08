@@ -40,6 +40,29 @@ class VehicleDoor:
         color = "#ceffc9" if self.isOpen else "#6c0909"
         ax.plot([x0, x1], [y0, y1], color=color, lw=2)
 
+    def get_inside_waypoint(self):
+        WP_DIST = 0.5
+        pos = np.array([self.x, self.y])
+        vec = np.array([self.x_vec, self.y_vec])
+
+        a = np.array([[0, -1], [1, 0]])
+        return pos + WP_DIST * a @ vec
+
+    def get_outside_waypoint(self):
+        WP_DIST = 1
+        pos = np.array([self.x, self.y])
+        vec = np.array([self.x_vec, self.y_vec])
+
+        a = np.array([[0, 1], [-1, 0]])
+        return pos + WP_DIST * a @ vec
+
+    def draw_technical(self, ax: plt.Axes):
+        outside_wp = self.get_outside_waypoint()
+        inside_wp = self.get_inside_waypoint()
+
+        ax.plot(outside_wp[0], outside_wp[1], "x", ms=8)
+        ax.plot(inside_wp[0], inside_wp[1], "x", ms=8)
+
 
 class VehicleWalls:
     """
@@ -48,8 +71,8 @@ class VehicleWalls:
 
     def __init__(self, points):
 
-        if len(points) < 4:
-            raise "Need at least 4 points for walls with right angles."
+        if len(points) != 4:
+            raise "Need exactly 4 points for rectangle walls"
 
         segments = []
         for i in range(len(points) - 1):
@@ -411,8 +434,9 @@ class Vehicle:
         for handrail in self.handrails:
             handrail.draw(ax)
 
-        for sa in self.standing_areas:
-            sa.draw_attractiveness(ax)
+    def draw_technical(self, ax):
+        for door in self.doors:
+            door.draw_technical(ax)
 
     def delimiting_coordinates(self):
         x = []
@@ -594,7 +618,6 @@ class GlobalNode:
 
 
 # Things that need to be solved:
-# Rectangle merging
 # Auto waypoint-categorization.
 
 
@@ -620,14 +643,6 @@ ax = plt.gca()
 ax.set_aspect("equal")
 
 v.draw(ax)
-rects = v.standing_area_rectangles()
-"""
-
-for r in rects:
-    print(r)
-    vis_rect = Rectangle(r[0], r[1][0] - r[0][0], r[1][1] - r[0][1], ec="black")
-    ax.add_patch(vis_rect)
-
-"""
+v.draw_technical(ax)
 
 plt.show()
