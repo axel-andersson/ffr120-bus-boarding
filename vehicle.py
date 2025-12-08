@@ -419,6 +419,8 @@ class Vehicle:
         standing_areas = [StandingArea(rect, handrails) for rect in standing_area_rects]
         self.standing_areas = standing_areas
 
+        waypoints = self.get_area_waypoints()
+
     def draw(self, ax):
         self.walls.draw(ax)
 
@@ -656,6 +658,32 @@ class Vehicle:
     def get_area_waypoints(self):
         area_boundary_lines = self.get_area_boundary_lines()
 
+        MAX_WAYPOINT_SPACE = 0.5
+        waypoints = []
+        for i, j, segment in area_boundary_lines:
+            p0 = segment[0]
+            p1 = segment[1]
+            segment_length = np.linalg.norm(p1 - p0)
+
+            if segment_length <= 2 * MAX_WAYPOINT_SPACE:
+                point = (p0 + p1) / 2
+                waypoints.append((i, j, point))
+                continue
+
+            subdivision_count = int(np.ceil(segment_length / MAX_WAYPOINT_SPACE))
+            x_space = np.linspace(p0[0], p1[0], subdivision_count + 1)
+            y_space = np.linspace(p0[1], p1[1], subdivision_count + 1)
+
+            x_points = x_space[1:-1]
+            y_points = y_space[1:-1]
+            points = np.array([x_points, y_points]).T
+
+            for k in range(points.shape[0]):
+                point = points[k]
+                waypoints.append((i, j, point))
+
+        return waypoints
+
     def update_standing_attractiveness(self, points):
         for sa in self.standing_areas:
             sa.set_attractiveness(points)
@@ -696,7 +724,6 @@ hr = Handrail([1, 0], [1, 5])
 v = Vehicle(vw, [door], [seat1, seat2, seat3, seat4], [obs], [hr])
 
 v.update_standing_attractiveness(np.array([[1, 4]]))
-print(v.get_area_boundary_lines())
 
 ax = plt.gca()
 ax.set_aspect("equal")
