@@ -271,6 +271,7 @@ class StandingArea:
 
         attractiveness = self.init_base_attractiveness(handrails)
         self.base_attractiveness = attractiveness
+        self.overall_attractiveness = attractiveness
 
     def init_position_ranges(self):
         min_x = self.x
@@ -327,9 +328,26 @@ class StandingArea:
 
                     d_rel = d / CUTOFF
 
-                    repulsion[i, j] += np.exp(-3*d_rel**2)
+                    repulsion[i, j] += np.exp(-3 * d_rel**2)
 
         return repulsion.clip(0, 1)
+
+    def set_attractiveness(self, passenger_points):
+        x_grid_size = self.x_eval_points.size
+        y_grid_size = self.y_eval_points.size
+
+        base_attractivenss = self.base_attractiveness
+        repulsion = self.passenger_repulsion(passenger_points)
+
+        # Weights to tweak balance
+        NEUTRAL_LEVEL = 1
+        BASE_MODIFIER = 1
+        REPULSION_MODIFIER = 2
+
+        overall = np.ones((x_grid_size, y_grid_size)) * NEUTRAL_LEVEL
+        overall += BASE_MODIFIER * base_attractivenss
+        overall -= REPULSION_MODIFIER * repulsion
+        self.overall_attractiveness = overall
 
     def draw_attractiveness(self, ax):
 
@@ -337,7 +355,7 @@ class StandingArea:
 
         max_value = 3
 
-        test = self.passenger_repulsion([[1, 4]])
+        attractiveness = self.overall_attractiveness
 
         for i in range(self.x_eval_points.size):
             x0 = np.max([self.x_eval_points[i] - 0.5 * gc, self.x])
@@ -346,8 +364,8 @@ class StandingArea:
                 y0 = np.max([self.y_eval_points[j] - 0.5 * gc, self.y])
                 y1 = np.min([self.y_eval_points[j] + 0.5 * gc, self.y + self.height])
 
-                attractiveness = test[i][j]
-                opacity = np.min([attractiveness / max_value, 1])
+                pt_attractiveness = attractiveness[i][j]
+                opacity = np.min([pt_attractiveness / max_value, 1])
                 color = (1, 0, 0, opacity)
 
                 rect = Rectangle((x0, y0), x1 - x0, y1 - y0, fc=color)
@@ -538,6 +556,10 @@ class Vehicle:
             x_merged_rects.append(merged_rect)
         return x_merged_rects
 
+    def update_standing_attractiveness(self, points):
+        for sa in self.standing_areas:
+            sa.set_attractiveness(points)
+
 
 class LocalNode:
     """
@@ -573,6 +595,8 @@ obs = Obstacle([8, 2], 2, 3)
 hr = Handrail([1, 0], [1, 5])
 
 v = Vehicle(vw, [door], [seat1, seat2, seat3, seat4], [obs], [hr])
+
+v.update_standing_attractiveness(np.array([[1, 4]]))
 
 ax = plt.gca()
 ax.set_aspect("equal")
