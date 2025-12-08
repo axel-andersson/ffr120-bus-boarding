@@ -653,6 +653,9 @@ class Vehicle:
                     pass
         return lines
 
+    def get_area_waypoints(self):
+        area_boundary_lines = self.get_area_boundary_lines()
+
     def update_standing_attractiveness(self, points):
         for sa in self.standing_areas:
             sa.set_attractiveness(points)
