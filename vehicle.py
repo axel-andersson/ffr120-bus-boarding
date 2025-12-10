@@ -28,9 +28,12 @@ class VehicleDoor:
         self.x = x
         self.y = y
         self.width = width
-        self.isOpen = False
+        self.is_open = False
         self.x_vec = 1
         self.y_vec = 0
+
+        self.allow_in = True
+        self.allow_out = True
 
     def draw(self, ax: plt.Axes):
         x0 = self.x - self.x_vec * self.width / 2
@@ -38,7 +41,7 @@ class VehicleDoor:
         y0 = self.y - self.y_vec * self.width / 2
         y1 = self.y + self.y_vec * self.width / 2
 
-        color = "#ceffc9" if self.isOpen else "#6c0909"
+        color = "#ceffc9" if self.is_open else "#6c0909"
         ax.plot([x0, x1], [y0, y1], color=color, lw=2)
 
     def get_inside_waypoint(self):
@@ -193,7 +196,7 @@ class PassengerSeat:
         self.height = height
 
         self.mounting_point = mounting_point
-        self.isOccupied = False
+        self.is_occupied = False
 
     def draw(self, ax: plt.Axes, with_path_finding=False):
 
