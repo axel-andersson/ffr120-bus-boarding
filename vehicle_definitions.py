@@ -122,7 +122,7 @@ def articulated_bus():
 ss = articulated_bus()
 ss.update_standing_attractiveness([[11, 2]])
 
-print(ss.select_standing_position())
+print(ss.find_boarding_target())
 
 ax = plt.gca()
 ss.draw(ax)

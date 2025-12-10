@@ -866,7 +866,7 @@ class SimSpace:
     #
 
     def select_free_seat(self):
-        free_seats = list(filter(lambda s: not s.isOccupied, self.seats))
+        free_seats = list(filter(lambda s: not s.is_occupied, self.seats))
         # seat is selected at random with equal prob.
         # Since mounting is done from aisle, priority for
         # window seats has no impact
@@ -906,6 +906,21 @@ class SimSpace:
 
         index = int(np.random.randint(len(positions)))
         return positions[index]
+
+    def find_boarding_target(self):
+        # Assume 90% of people prefer to sit over standing
+        SIT_PREFERENCE = 0.9
+
+        wants_to_stand = np.random.rand() > SIT_PREFERENCE
+        free_seat_count = len(self.seats)
+
+        if wants_to_stand or free_seat_count == 0:
+            stand_pos = self.select_standing_position()
+            return (None, stand_pos)
+        else:
+            seat = self.select_free_seat()
+            target_pos = seat.mounting_point
+            return (seat, target_pos)
 
     def get_path_out(self, start_position):
         """
