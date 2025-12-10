@@ -42,7 +42,7 @@ class VehicleDoor:
         ax.plot([x0, x1], [y0, y1], color=color, lw=2)
 
     def get_inside_waypoint(self):
-        WP_DIST = 0.5
+        WP_DIST = 0.3
         pos = np.array([self.x, self.y])
         vec = np.array([self.x_vec, self.y_vec])
 
@@ -211,7 +211,7 @@ class PassengerSeat:
             (self.x, self.y), self.width, self.height, fc="#bcbcbc", ec="#3A3A3A"
         )
         ellipse = Ellipse(
-            (self.x + self.width / 2, self.y + self.width / 2),
+            (self.x + self.width / 2, self.y + self.height / 2),
             self.width * 0.9,
             self.height * 0.9,
             fc="#dadada",
@@ -282,6 +282,12 @@ class Handrail:
         )
 
 
+# Weights to tweak balance for standing spot attractiveness
+ATTR_NEUTRAL_LEVEL = 0.2
+ATTR_BASE_MODIFIER = 1
+ATTR_REPULSION_MODIFIER = ATTR_NEUTRAL_LEVEL + ATTR_BASE_MODIFIER
+
+
 class StandingArea:
     """
     Docstring for StandingArea
@@ -300,7 +306,9 @@ class StandingArea:
 
         attractiveness = self.init_base_attractiveness(handrails)
         self.base_attractiveness = attractiveness
-        self.overall_attractiveness = attractiveness
+        self.overall_attractiveness = (
+            ATTR_BASE_MODIFIER * attractiveness + ATTR_NEUTRAL_LEVEL
+        )
 
     def init_position_ranges(self):
         min_x = self.x
@@ -342,7 +350,7 @@ class StandingArea:
         y_grid_size = self.y_eval_points.size
         repulsion = np.zeros((x_grid_size, y_grid_size))
 
-        CUTOFF = 1
+        CUTOFF = 0.7
 
         for i in range(x_grid_size):
             x = self.x_eval_points[i]
@@ -368,14 +376,10 @@ class StandingArea:
         base_attractivenss = self.base_attractiveness
         repulsion = self.passenger_repulsion(passenger_points)
 
-        # Weights to tweak balance
-        NEUTRAL_LEVEL = 1
-        BASE_MODIFIER = 1
-        REPULSION_MODIFIER = 2
-
-        overall = np.ones((x_grid_size, y_grid_size)) * NEUTRAL_LEVEL
-        overall += BASE_MODIFIER * base_attractivenss
-        overall -= REPULSION_MODIFIER * repulsion
+        overall = np.ones((x_grid_size, y_grid_size)) * ATTR_NEUTRAL_LEVEL
+        overall += ATTR_BASE_MODIFIER * base_attractivenss
+        overall -= ATTR_REPULSION_MODIFIER * repulsion
+        overall = np.clip(overall, 0, ATTR_NEUTRAL_LEVEL + ATTR_BASE_MODIFIER)
         self.overall_attractiveness = overall
 
     def draw_attractiveness(self, ax):
@@ -429,7 +433,6 @@ class InsideWaypoints:
             sections_by_code.append([swp[0], swp[1]])
 
         for i, door in enumerate(doors):
-            print(door)
             code = self.door_node_code(i)
             codes.append(code)
             coord = door.get_inside_waypoint()
@@ -538,7 +541,7 @@ class InsideWaypoints:
     def get_area_waypoints(self):
         area_boundary_lines = self.get_area_boundary_lines()
 
-        MAX_WAYPOINT_SPACE = 0.5
+        MAX_WAYPOINT_SPACE = 0.3
         waypoints = []
         for i, j, segment in area_boundary_lines:
             p0 = segment[0]
@@ -706,6 +709,8 @@ class SimSpace:
     def draw_technical(self, ax):
         for door in self.doors:
             door.draw_technical(ax)
+        for area in self.standing_areas:
+            area.draw_attractiveness(ax)
 
     def delimiting_coordinates(self):
         x = []
@@ -872,6 +877,8 @@ class SimSpace:
 # Dummy code for testing below:
 #
 
+
+"""
 vw = VehicleWalls([[0, 0], [10, 0], [10, 5], [0, 5]])
 door = VehicleDoor("test", 7, 0, 2)
 seat1 = PassengerSeat(0, [4.1, 0], 1, 1, [0.5, 2.5])
@@ -904,3 +911,4 @@ ax.plot(
 )
 
 plt.show()
+"""
