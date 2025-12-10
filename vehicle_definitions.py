@@ -97,22 +97,20 @@ def articulated_bus():
     front_handrails = [
         Handrail([10.1, 2.5], [12.8, 2.5]),
         Handrail([10.1, 2], [12.8, 2]),
-        Handrail([10.1, 0.5], [12.8, 0.5]),
-        Handrail([10.1, 0], [12.8, 0]),
+        Handrail([10.1, 0.75], [12.8, 0.75]),
     ]
 
     # Middle standing area
     middle_handrails = [
-        Handrail([6.5, 2], [8, 2]),
+        Handrail([7, 2], [8, 2]),
         Handrail([6.5, 0.5], [8, 0.5]),
     ]
 
     # Back standing area
     back_handrails = [
         Handrail([4, 2.5], [6.5, 2.5]),
-        Handrail([4, 2], [6.5, 2]),
-        Handrail([4, 0.5], [5.5, 0.5]),
-        Handrail([4, 0], [5.5, 0]),
+        Handrail([4, 2], [6, 2]),
+        Handrail([4.2, 0.75], [5.5, 0.75]),
     ]
 
     handrails = front_handrails + middle_handrails + back_handrails
@@ -124,6 +122,7 @@ def articulated_bus():
 ss = articulated_bus()
 ss.update_standing_attractiveness([[11, 2]])
 
+print(ss.select_standing_position())
 
 ax = plt.gca()
 ss.draw(ax)

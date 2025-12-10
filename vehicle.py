@@ -858,6 +858,52 @@ class SimSpace:
         for sa in self.standing_areas:
             sa.set_attractiveness(points)
 
+    #
+    # Pathfinding methods
+    #
+
+    def select_free_seat(self):
+        free_seats = list(filter(lambda s: not s.isOccupied, self.seats))
+        # seat is selected at random with equal prob.
+        # Since mounting is done from aisle, priority for
+        # window seats has no impact
+
+        seat_index = int(np.random.randint(len(free_seats)))
+        return free_seats[seat_index]
+
+    def select_standing_position(self):
+        standing_areas = self.standing_areas
+
+        # Randomly select a position that is within
+        # a range of the maximum attractiveness of
+        # all standing positions
+
+        max_attractiveness = -float("inf")
+
+        for sa in standing_areas:
+            attr = sa.overall_attractiveness
+            sa_max_attr = np.max(attr)
+            if sa_max_attr > max_attractiveness:
+                max_attractiveness = sa_max_attr
+
+        positions = []
+        for sa in standing_areas:
+            base_x = sa.x
+            base_y = sa.y
+            gc = sa.grid_courseness
+
+            attr = sa.overall_attractiveness
+
+            max_indices = np.argwhere(attr == max_attractiveness).T
+            points_x = max_indices[0] * gc + base_x + gc / 2
+            points_y = max_indices[1] * gc + base_y + gc / 2
+
+            coordinates = np.array([points_x, points_y]).T.tolist()
+            positions += coordinates
+
+        index = int(np.random.randint(len(positions)))
+        return positions[index]
+
     def get_path_out(self, start_position):
         """
         Gets path from start position
@@ -867,48 +913,3 @@ class SimSpace:
         """
 
         return self.inside_waypoints.pathfind_exit(start_position)
-
-
-# Things that need to be solved:
-# Auto waypoint-categorization.
-
-
-#
-# Dummy code for testing below:
-#
-
-
-"""
-vw = VehicleWalls([[0, 0], [10, 0], [10, 5], [0, 5]])
-door = VehicleDoor("test", 7, 0, 2)
-seat1 = PassengerSeat(0, [4.1, 0], 1, 1, [0.5, 2.5])
-seat2 = PassengerSeat(1, [4.1, 1], 1, 1, [0.5, 2.5])
-seat3 = PassengerSeat(0, [4.1, 3], 1, 1, [0.5, 2.5])
-seat4 = PassengerSeat(1, [4.1, 4], 1, 1, [0.5, 2.5])
-
-obs = Obstacle([8, 2], 2, 3)
-hr = Handrail([1, 0], [1, 5])
-platform_line = [[0, -2], [10, -2]]
-
-v = SimSpace(vw, [door], [seat1, seat2, seat3, seat4], [obs], [hr])
-
-v.update_standing_attractiveness(np.array([[1, 4]]))
-
-start_pos = np.array([2, 0.5])
-path_out, exit_door = v.get_path_out(start_pos)
-
-path_coords = np.array(path_out).T
-
-ax = plt.gca()
-ax.set_aspect("equal")
-
-v.draw(ax)
-v.draw_technical(ax)
-
-ax.plot(
-    np.insert(path_coords[0], 0, start_pos[0]),
-    np.insert(path_coords[1], 0, start_pos[1]),
-)
-
-plt.show()
-"""
