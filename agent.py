@@ -8,7 +8,7 @@ class MovementAgent:
     # ─── Initialization ─────────────────────────────
     def __init__(self, x, y, angle, radius, epsilon, box_length, box_width, dt=0.1):
         # Force weights
-        self.attractor_weight = 5
+        self.attractor_weight = 7
         self.wall_weight = 3
         self.other_agents_weight = 2
 
@@ -20,6 +20,8 @@ class MovementAgent:
         self.last_force = np.array([0, 0])
         self.a = 0.3  # constant acceleration
         self.dt = dt
+
+        # Targets
         self.target_queue = np.array([
             [ 5.0,        0.0       ],
             [ 3.11745,    3.90915   ],
@@ -31,12 +33,20 @@ class MovementAgent:
         ])
         self.target = self.target_queue[0]
         self.target_queue = self.target_queue[1:]
+        self.reached_final_target = False
+
+        # Ticket control check
+        self.ticket_check_pos = np.array([3, 2.5]) # <-------- one point where ticket check is being made
+        self.ticket_checked = False
+        self.checking_ticket = False
+        self.check_ticket_duration_range = (0.5, 3) # in seconds
+        self.ticket_check_radius = 1 # <------ how far from ticket check point you must be to stop and check your ticket
 
         # Movement modifiers
         self.inertia_factor = 0.2
-        self.repulsion_scale = 0.3
+        self.repulsion_scale = 0.1
         self.repulsion_stopping_threshold = 0.2
-        self.stopping_probability = 0.5
+        self.stopping_probability = 0.4
 
         # Geometry and environment
         self.radius = radius
@@ -44,7 +54,8 @@ class MovementAgent:
         self.box_length = box_length
         self.box_width = box_width
 
-        # Shaking / stopping control
+        # Shaking / stopping control (repulsion based)
+        self.stopping_duration_range = (0.5, 3.0) # in seconds
         self.stopping_rule = False
         self.stop_timer = 0
         self.stress = False
@@ -52,8 +63,8 @@ class MovementAgent:
         # Queuing behavior (influence disk )
         self.waiting_rule = False
         self.wait_timer = 0
-        self.wait_disk_radius = 1.0
-        self.wait_duration_range = (5, 15) 
+        self.wait_disk_radius = 0.5
+        self.wait_duration_range = (0.5, 3) # in seconds
 
         # Dynamic speed limits near goal
         self.v_far = 1.0     # Max speed far from target
@@ -67,6 +78,7 @@ class MovementAgent:
         return np.array([self.x, self.y, self.v, self.angle])
     
 
+    # ─── Change attraction poiint if prevoius is reached ────
     def set_target(self):
 
         n = len(self.target_queue)
@@ -77,7 +89,18 @@ class MovementAgent:
         self.target = self.target_queue[0]
         self.target_queue = self.target_queue[1:]
         return self.target, self.target_queue
+    
 
+    # ─── Stop if  position is at ticket control position ────
+    def check_ticket(self):
+
+        pos = np.array([self.x, self.y])
+        to_ticket_control = self.ticket_check_pos - pos
+        dist = np.linalg.norm(to_ticket_control)
+
+        if dist < self.ticket_check_radius:
+            return True
+            
 
     # ─── Calculate movement and repulsion forces ────
     def movement_force(self, walls, agents: list["MovementAgent"]):
@@ -126,24 +149,31 @@ class MovementAgent:
     # ─── Handle repulsion-based stopping rule ───────
     def _update_stopping_rule(self, f_rep_agents: np.array):
         v_vec = np.array([np.cos(self.angle), np.sin(self.angle)]) * self.v
-        if np.linalg.norm(v_vec) < 1e-6:
-            return
-
         rep_norm = np.linalg.norm(f_rep_agents)
-        if (
-            rep_norm > self.repulsion_stopping_threshold
-            and np.dot(f_rep_agents, v_vec) < 0
-            and not self.stress
-            and not self.stopping_rule
-            and np.random.rand() < self.stopping_probability
-        ):
-            self.stopping_rule = True
-            self.stop_timer = np.random.randint(5, 20)
 
+        # If stop rule already triggered, calculate timer and return 
         if self.stopping_rule:
             self.stop_timer -= 1
             if self.stop_timer <= 0:
                 self.stopping_rule = False
+            return
+
+        # If no movement has been created yet, return
+        if np.linalg.norm(v_vec) < 1e-6:
+            return
+
+        # Otherwise trigger stop
+        if (
+            rep_norm > self.repulsion_stopping_threshold
+            and np.dot(f_rep_agents, v_vec) < 0
+            and not self.stress
+            and np.random.rand() < self.stopping_probability
+        ):
+            self.stopping_rule = True
+            duration_s = np.random.uniform(*self.stopping_duration_range) # to seconds
+            self.stop_timer = max(1, int(duration_s / self.dt))
+            
+
 
     # ─── Handle waiting rule based on influence disk ───────
     def check_waiting_zone(self, agents: list["MovementAgent"]):
@@ -173,7 +203,7 @@ class MovementAgent:
         to_target = self.target - pos
         dist = np.linalg.norm(to_target)
 
-        if dist < 0.3:
+        if dist < 0.5:
             self.target, self.target_queue = self.set_target()
             to_target = self.target - pos
             dist = np.linalg.norm(to_target)
@@ -187,17 +217,31 @@ class MovementAgent:
         else:
             self.v_max = self.v_far
 
-        # Stop if at goal
+        # Stop if ticket check is required
+        if not self.ticket_checked and self.check_ticket():
+            self.ticket_checked = True
+            self.checking_ticket = True
+            duration_s = np.random.uniform(*self.check_ticket_duration_range) # convert to seconds
+            self.check_ticket_timer = max(1, int(duration_s / self.dt))
+
+        if self.checking_ticket:
+            self.check_ticket_timer -= 1
+            if self.check_ticket_timer <= 0:
+                self.checking_ticket = False
+
+        # Stop if at goal (last attractor)
         stop_radius = self.radius + 0.1
         if dist < stop_radius and is_final_target:
             self.v = 0.0
             self.last_force = np.array([0.0, 0.0])
+            self.reached_final_target = True
             return
         
         # Queuing behavior: influence disk
         if not self.waiting_rule and self.check_waiting_zone(agents):
             self.waiting_rule = True
-            self.wait_timer = np.random.randint(*self.wait_duration_range)
+            duration_s = np.random.uniform(*self.wait_duration_range) 
+            self.wait_timer = max(1, int(duration_s / self.dt)) # seconds
 
         if self.waiting_rule:
             self.wait_timer -= 1
@@ -208,15 +252,35 @@ class MovementAgent:
         F_to_vec, repulsion, f_rep_agents = self.movement_force(walls, agents)
         self._update_stopping_rule(f_rep_agents)
 
-        alpha = 0.0 if (self.stopping_rule or self.waiting_rule) else 1.0
+        # bug check
+        reason = []
+        if self.stopping_rule:
+            reason.append("STOPPING_RULE")
+        if self.waiting_rule:
+            reason.append("WAITING_RULE")
+        if self.checking_ticket:
+            reason.append("TICKET")
 
+        # precis innan du beräknar alpha:
+        if reason:
+            print(f"Agent debug: x={self.x:.2f}, y={self.y:.2f}, orsaker: {reason}")
+
+
+        # Move as long as not stop because of various reasons
+        alpha = 0.0 if (self.stopping_rule or self.waiting_rule or self.checking_ticket) else 1.0
+
+        # normalize forces
         if np.linalg.norm(F_to_vec) > 1e-6:
             f_to = F_to_vec / np.linalg.norm(F_to_vec)
         else:
             f_to = np.array([np.cos(self.angle), np.sin(self.angle)])
 
+
         # Accelerate toward v_max
-        self.v = min(self.v + self.a * self.dt, self.v_max)
+        if self.stopping_rule or self.waiting_rule or self.checking_ticket:
+            self.v = 0.0
+        else:
+            self.v = min(self.v + self.a * self.dt, self.v_max)
 
         # Movement vector
         delta_desired = alpha * self.v * self.dt * f_to
