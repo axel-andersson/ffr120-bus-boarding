@@ -81,19 +81,26 @@ def get_waiting_rectangle(vehicle: SimSpace, height):
     return [[left_x, bottom_y], [right_x, top_y]]
 
 
-def init_waiting_passengers(rect, count):
-    agents = []
+def get_random_rect_point(rect):
     x0 = rect[0][0]
     x1 = rect[1][0]
     y0 = rect[0][1]
     y1 = rect[1][1]
 
+    x = x0 + np.random.rand() * (x1 - x0)
+    y = y0 + np.random.rand() * (y1 - y0)
+
+    return [x, y]
+
+
+def init_waiting_passengers(rect, count):
+    agents = []
+
     for _ in range(count):
-        x = x0 + np.random.rand() * (x1 - x0)
-        y = y0 + np.random.rand() * (y1 - y0)
+        pos = get_random_rect_point(rect)
         agent = MovementAgent(
-            x,
-            y,
+            pos[0],
+            pos[1],
             0,
             radius=0.22,
             epsilon=0.1,
@@ -114,11 +121,48 @@ def init_waiting_passengers(rect, count):
     return agents
 
 
+def prime_exiting_passenger(
+    vehicle: SimSpace, passenger, all_passengers, platform_rect
+):
+    seats = vehicle.seats
+    seat_positions = [s.get_center() for s in seats]
+
+    passenger_seat = None
+    for i in range(len(seat_positions)):
+        sp = seat_positions[i]
+        if sp[0] == passenger.x and sp[1] == passenger.y:
+            passenger_seat = seats[i]
+            break
+
+    # Update attractiveness if standing
+    if passenger_seat is None:
+        pi = all_passengers.index(passenger)  # Passenger index
+        remaining_standing = all_passengers[:pi] + all_passengers[pi + 1 :]
+
+        passenger_points = [[p.x, p.y] for p in remaining_standing]
+        vehicle.update_standing_attractiveness(passenger_points)
+
+        pathfind_start_point = [passenger.x, passenger.y]
+        pass
+    # Dismount seat if sitting
+    else:
+        passenger_seat.is_occupied = False
+        pathfind_start_point = passenger.mounting_point
+
+    target_pos = get_random_rect_point(platform_rect)
+
+    # Get two-parted exit path
+    exit_path = vehicle.get_path_out(pathfind_start_point, target_pos)
+    return exit_path
+
+
 bus = articulated_bus()
 
 start_passengers = init_current_passengers_and_settle(bus, 10)
 wr = get_waiting_rectangle(bus, 3)
 waiting_passengers = init_waiting_passengers(wr, 10)
+
+prime_exiting_passenger(bus, start_passengers[0], start_passengers, wr)
 
 ax = plt.gca()
 bus.draw(ax)
