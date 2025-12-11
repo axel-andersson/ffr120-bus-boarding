@@ -34,6 +34,13 @@ class VehicleDoor:
         self.allow_in = True
         self.allow_out = True
 
+    def get_line(self):
+        x0 = self.x - 0.5 * self.x_vec
+        y0 = self.y - 0.5 * self.y_vec
+        x1 = self.x + 0.5 * self.x_vec
+        y1 = self.y + 0.5 * self.y_vec
+        return [[x0, y0], [x1, y1]]
+
     def draw(self, ax: plt.Axes):
         x0 = self.x - self.x_vec * self.width / 2
         x1 = self.x + self.x_vec * self.width / 2
@@ -243,6 +250,11 @@ class PassengerSeat:
         self.mounting_point = mounting_point
         self.is_occupied = False
 
+    def get_center(self):
+        x = self.x + self.width / 2
+        y = self.y + self.height / 2
+        return [x, y]
+
     def draw(self, ax: plt.Axes, with_path_finding=False):
 
         if with_path_finding:
@@ -359,6 +371,9 @@ class StandingArea:
         )
 
     def init_position_ranges(self):
+
+        MARGIN = 0.1
+
         min_x = self.x
         max_x = self.x + self.width
 
@@ -367,11 +382,11 @@ class StandingArea:
 
         gc = self.grid_courseness
 
-        x_start = np.floor((min_x) / gc) * gc
-        y_start = np.floor((min_y) / gc) * gc
+        x_start = np.floor((min_x + MARGIN) / gc) * gc
+        y_start = np.floor((min_y + MARGIN) / gc) * gc
 
-        x_end = np.floor(max_x / gc) * gc
-        y_end = np.floor(max_y / gc) * gc
+        x_end = np.floor((max_x - MARGIN) / gc) * gc
+        y_end = np.floor((max_y - MARGIN) / gc) * gc
 
         x_range = np.arange(x_start, x_end, gc) + 0.5 * gc
         y_range = np.arange(y_start, y_end, gc) + 0.5 * gc
@@ -970,11 +985,18 @@ class SimSpace:
         return positions[index]
 
     def find_boarding_target(self):
-        # Assume 90% of people prefer to sit over standing
-        SIT_PREFERENCE = 0.9
+        # Assume X% of people prefer to sit over standing if bus is empty
+        EMPTY_SIT_PREFERENCE = 0.85
+        free_seat_count = len(list(filter(lambda s: not s.is_occupied, self.seats)))
+        total_seat_count = len(self.seats)
 
-        wants_to_stand = np.random.rand() > SIT_PREFERENCE
-        free_seat_count = len(self.seats)
+        sit_preference = (
+            0
+            if free_seat_count == 0
+            else EMPTY_SIT_PREFERENCE ** ((total_seat_count / free_seat_count)/1.5)
+        )  # arbitairy numbers
+
+        wants_to_stand = np.random.rand() > sit_preference
 
         if wants_to_stand or free_seat_count == 0:
             stand_pos = self.select_standing_position()

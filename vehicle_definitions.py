@@ -123,6 +123,7 @@ def articulated_bus():
     ss = SimSpace(walls, [d1, d2, d3], all_seats, obstacles, handrails)
     return ss
 
+"""
 
 ss = articulated_bus()
 ss.doors[0].allow_out = False
@@ -147,3 +148,5 @@ ss.draw_technical(ax)
 ax.set_aspect("equal")
 
 plt.show()
+
+"""
