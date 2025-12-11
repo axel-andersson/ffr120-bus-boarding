@@ -134,12 +134,11 @@ p = np.concat(
     (np.array([end]), np.array(path_in[0]), np.array(path_in[1]), np.array([start]))
 )
 
+wss = ss.get_collision_wall_segments()
 
 ax = plt.gca()
-ss.draw(ax)
-ss.draw_technical(ax)
-ax.set_aspect("equal")
-
-ax.plot(p.T[0], p.T[1])
+for ws in wss:
+    coords = np.array(ws).T
+    ax.plot(coords[0], coords[1])
 
 plt.show()

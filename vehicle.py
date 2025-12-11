@@ -115,63 +115,99 @@ class VehicleWalls:
 
         self.segments = segments
 
-    def cut_out_door(self, door: VehicleDoor):
 
-        door_point = np.array([door.x, door.y])
+    def cut_out_door(self, door):
 
-        # Check for intersections
-        intersection_index = None
-        for i, segment in enumerate(self.segments):
-            if point_line_intersects(door_point, segment):
-                intersection_index = i
-                break
+        door_center = np.array([door.x, door.y])
 
-        if intersection_index == None:
-            raise "Door center doesn't intersect a wall segment."
+        # Normalize and split segments by orientation
+        segs = normalize_segments(self.segments)
 
-        # Find points for new segments
-        segment_before = self.segments[intersection_index - 1]
-        segment_after = self.segments[(intersection_index + 1) % len(self.segments)]
+        horizontals = {}
+        verticals = {}
 
-        start_point = np.array(segment_before[1])
-        end_point = np.array(segment_after[0])
+        for p0, p1 in segs:
+            x0, y0 = p0
+            x1, y1 = p1
+            if y0 == y1:
+                horizontals.setdefault(y0, []).append((x0, x1))
+            else:
+                verticals.setdefault(x0, []).append((y0, y1))
 
-        wall_delta = end_point - start_point
-        wall_vector = wall_delta / np.linalg.norm(wall_delta)
+        # Determine orientation of the door's wall
+        # (Axis-aligned walls → either horizontal or vertical segment must contain the door)
+        door_x, door_y = door_center
 
-        # Update door vector with wall info
-        door.x_vec = wall_vector[0]
-        door.y_vec = wall_vector[1]
+        affected_orientation = None
+        group_key = None
 
-        first_door_end = door_point - wall_vector * door.width / 2
-        second_door_end = door_point + wall_vector * door.width / 2
+        # Check horizontal walls
+        if door_y in horizontals:
+            for a, b in horizontals[door_y]:
+                if a <= door_x <= b:
+                    affected_orientation = "H"
+                    group_key = door_y
+                    break
 
-        # Check if door ends also overlap wall segment.
-        if not point_line_intersects(first_door_end, self.segments[intersection_index]):
-            raise "Door end doesn't intersect a wall segment."
+        # If not found, check vertical walls
+        if affected_orientation is None and door_x in verticals:
+            for a, b in verticals[door_x]:
+                if a <= door_y <= b:
+                    affected_orientation = "V"
+                    group_key = door_x
+                    break
 
-        if not point_line_intersects(
-            second_door_end, self.segments[intersection_index]
-        ):
-            raise "Door end doesn't intersect a wall segment."
+        if affected_orientation is None:
+            raise RuntimeError("Door does not lie on any wall segment.")
 
-        # Get new segments and replace
-        first_wall_segment = [start_point.tolist(), first_door_end.tolist()]
-        second_wall_segment = [second_door_end.tolist(), end_point.tolist()]
+        # Compute door interval along the wall
+        half = door.width / 2
 
-        self.segments.pop(intersection_index)
+        if affected_orientation == "H":
+            door_interval = (door_x - half, door_x + half)
+            intervals = horizontals[group_key]
+        else:
+            door_interval = (door_y - half, door_y + half)
+            intervals = verticals[group_key]
 
-        # Inserts happen BEFORE specified indices
-        self.segments.insert(intersection_index, second_wall_segment)
-        self.segments.insert(intersection_index, first_wall_segment)
+        # Add "negative" interval that removes coverage
+        full = intervals + []
+        full.append(door_interval)  # This adds overlap → removed by split_remove_overlaps
 
-    def draw(self, ax: plt.Axes):
-        for segment in self.segments:
-            x0 = segment[0][0]
-            x1 = segment[1][0]
-            y0 = segment[0][1]
-            y1 = segment[1][1]
-            ax.plot([x0, x1], [y0, y1], color="#a0a0a0", lw=3)
+        cleaned = split_intervals_remove_overlaps(full)
+
+        # Filter out pieces inside the door interval
+        def outside_door(a, b):
+            return b <= door_interval[0] or a >= door_interval[1]
+
+        cleaned = [(a, b) for (a, b) in cleaned if outside_door(a, b)]
+
+        # Replace the old interval list
+        if affected_orientation == "H":
+            horizontals[group_key] = cleaned
+        else:
+            verticals[group_key] = cleaned
+
+        # Rebuild final segment list from intervals
+        new_segments = []
+
+        for y, spans in horizontals.items():
+            for a, b in spans:
+                new_segments.append([[a, y], [b, y]])
+
+        for x, spans in verticals.items():
+            for a, b in spans:
+                new_segments.append([[x, a], [x, b]])
+
+        self.segments = new_segments
+
+        def draw(self, ax: plt.Axes):
+            for segment in self.segments:
+                x0 = segment[0][0]
+                x1 = segment[1][0]
+                y0 = segment[0][1]
+                y1 = segment[1][1]
+                ax.plot([x0, x1], [y0, y1], color="#a0a0a0", lw=3)
 
 
 class PassengerSeat:
@@ -686,7 +722,14 @@ class SimSpace:
     Helper class for handling state of simulation space
     """
 
-    def __init__(self, walls, doors: list["VehicleDoor"], seats, obstacles, handrails):
+    def __init__(
+        self,
+        walls: VehicleWalls,
+        doors: list["VehicleDoor"],
+        seats,
+        obstacles,
+        handrails,
+    ):
         self.walls = walls
         for door in doors:
             walls.cut_out_door(door)
@@ -987,3 +1030,125 @@ class SimSpace:
         # holding logic inbetween
 
         return [inside_path[0], [outside_door_wps[0], target_pos]]
+
+    def get_collision_wall_segments(self):
+        standing_areas = self.standing_areas
+        rects = [sa.get_rect() for sa in standing_areas]
+
+        # Get ALL line segments, before removing overlapping parts
+        overlapping_lss = []
+        for rect in rects:
+            x0 = rect[0][0]
+            y0 = rect[0][1]
+            x1 = rect[1][0]
+            y1 = rect[1][1]
+            overlapping_lss.append([[x0, y0], [x1, y0]])
+            overlapping_lss.append([[x1, y0], [x1, y1]])
+            overlapping_lss.append([[x1, y1], [x0, y1]])
+            overlapping_lss.append([[x0, y1], [x0, y0]])
+
+        # Also include doors to cut out
+        door_lss = []
+        for door in self.doors:
+            x0 = door.x - door.x_vec * door.width / 2
+            x1 = door.x + door.x_vec * door.width / 2
+            y0 = door.y - door.y_vec * door.width / 2
+            y1 = door.y + door.y_vec * door.width / 2
+            door_lss.append([[x0, y0], [x1, y1]])
+
+        walls = self.walls.segments
+        line_segments = deoverlap_lines(overlapping_lss + door_lss + walls)
+
+        # Also include outer walls as collision
+        return line_segments + walls
+
+
+#
+# Helpers
+#
+
+
+def split_intervals_remove_overlaps(intervals):
+    """
+    intervals: list[(a, b)]
+    Returns list of non-overlapping intervals representing
+    ONLY regions covered by exactly 1 interval.
+    """
+
+    if not intervals:
+        return []
+
+    # Collect all unique endpoints
+    endpoints = set()
+    for a, b in intervals:
+        endpoints.add(a)
+        endpoints.add(b)
+
+    sorted_pts = sorted(endpoints)
+    result = []
+
+    # Sweep adjacent points
+    for i in range(len(sorted_pts) - 1):
+        a = sorted_pts[i]
+        b = sorted_pts[i + 1]
+        mid = (a + b) / 2
+
+        # Count how many original intervals cover this subrange
+        coverage = sum(1 for x0, x1 in intervals if x0 <= mid <= x1)
+
+        if coverage == 1:
+            # keep ONLY parts covered by exactly one interval
+            result.append((a, b))
+
+    return result
+
+
+def normalize_segments(segments):
+    out = []
+    for p0, p1 in segments:
+        x0, y0 = p0
+        x1, y1 = p1
+        if x0 == x1:  # vertical
+            if y1 < y0:
+                p0, p1 = p1, p0
+        else:  # horizontal
+            if x1 < x0:
+                p0, p1 = p1, p0
+        out.append((p0, p1))
+    return out
+
+
+def deoverlap_lines(segments):
+    # Normalize
+    segs = normalize_segments(segments)
+
+    # Separate H and V
+    horizontals = {}
+    verticals = {}
+
+    for p0, p1 in segs:
+        x0, y0 = p0
+        x1, y1 = p1
+
+        if y0 == y1:  # horizontal
+            horizontals.setdefault(y0, []).append((x0, x1))
+        elif x0 == x1:  # vertical
+            verticals.setdefault(x0, []).append((y0, y1))
+        else:
+            raise ValueError("Non-axis-aligned segment found")
+
+    # Process each horizontal y-group
+    final_h = []
+    for y, spans in horizontals.items():
+        splits = split_intervals_remove_overlaps(spans)
+        for a, b in splits:
+            final_h.append(([a, y], [b, y]))
+
+    # Process each vertical x-group
+    final_v = []
+    for x, spans in verticals.items():
+        splits = split_intervals_remove_overlaps(spans)
+        for a, b in splits:
+            final_v.append(([x, a], [x, b]))
+
+    return final_h + final_v
