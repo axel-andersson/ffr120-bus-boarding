@@ -81,20 +81,58 @@ def get_waiting_rectangle(vehicle: SimSpace, height):
     return [[left_x, bottom_y], [right_x, top_y]]
 
 
+def init_waiting_passengers(rect, count):
+    agents = []
+    x0 = rect[0][0]
+    x1 = rect[1][0]
+    y0 = rect[0][1]
+    y1 = rect[1][1]
+
+    for _ in range(count):
+        x = x0 + np.random.rand() * (x1 - x0)
+        y = y0 + np.random.rand() * (y1 - y0)
+        agent = MovementAgent(
+            x,
+            y,
+            0,
+            radius=0.22,
+            epsilon=0.1,
+            box_length=2,
+            box_width=1.5,
+            dt=0.1,
+        )
+        agents.append(agent)
+
+    # Settle
+    settle_time = 1
+    dt = 0.1
+
+    for t in range(int(settle_time / dt)):
+        for a in agents:
+            a.update(np.array([]), agents)
+            a.target = [a.x, a.y]
+    return agents
+
+
 bus = articulated_bus()
 
-passengers = init_current_passengers_and_settle(bus, 100)
+start_passengers = init_current_passengers_and_settle(bus, 10)
+wr = get_waiting_rectangle(bus, 3)
+waiting_passengers = init_waiting_passengers(wr, 10)
 
 ax = plt.gca()
 bus.draw(ax)
 
 ax.set_aspect("equal")
 
-for p in passengers:
-    ellipse = Ellipse((p.x, p.y), p.radius * 2, p.radius * 2)
+for p in start_passengers:
+    ellipse = Ellipse((p.x, p.y), p.radius * 2, p.radius * 2, fc="#ff2adf")
     ax.add_patch(ellipse)
 
-wr = get_waiting_rectangle(bus, 3)
+for p in waiting_passengers:
+    ellipse = Ellipse((p.x, p.y), p.radius * 2, p.radius * 2, fc="#2f52ff")
+    ax.add_patch(ellipse)
+
 print(wr)
 
 area_rect = Rectangle(
