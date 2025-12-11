@@ -13,7 +13,7 @@ class VehicleDoor:
     Helper class for doors for vehicle
     """
 
-    def __init__(self, id: str, x: float, y: float, width: float):
+    def __init__(self, x: float, y: float, width: float):
         """
         Create vehicle door
 
@@ -24,7 +24,6 @@ class VehicleDoor:
         :type width: float
         """
 
-        self.id = id
         self.x = x
         self.y = y
         self.width = width
@@ -53,14 +52,15 @@ class VehicleDoor:
         return pos + WP_DIST * a @ vec
 
     def get_outside_waypoints(self):
-        WP_DIST = 1
+        WP_DIST = 0.5
+        SIDE_MULT = 1.3
         pos = np.array([self.x, self.y])
         vec = np.array([self.x_vec, self.y_vec])
 
         a = np.array([[0, 1], [-1, 0]])
         center_waypoint = pos + WP_DIST * a @ vec
-        side_waypoint_1 = center_waypoint - self.width * vec / 2
-        side_waypoint_2 = center_waypoint + self.width * vec / 2
+        side_waypoint_1 = center_waypoint - SIDE_MULT * self.width * vec / 2
+        side_waypoint_2 = center_waypoint + SIDE_MULT * self.width * vec / 2
         return [center_waypoint, side_waypoint_1, side_waypoint_2]
 
     def draw_technical(self, ax: plt.Axes):
@@ -544,7 +544,7 @@ class InsideWaypoints:
     def get_area_waypoints(self):
         area_boundary_lines = self.get_area_boundary_lines()
 
-        MAX_WAYPOINT_SPACE = 0.3
+        MAX_WAYPOINT_SPACE = 0.4
         waypoints = []
         for i, j, segment in area_boundary_lines:
             p0 = segment[0]
@@ -631,12 +631,15 @@ class InsideWaypoints:
 
         return distances, paths
 
-    def pathfind_exit(self, start_position):
+    def pathfind_exit(self, start_position, allowed_doors):
         start_segment = self.get_point_standing_area(start_position)
         start_global_node_codes = self.codes_per_section[start_segment[0]]
         start_indices = [self.codes.index(v) for v in start_global_node_codes]
 
-        exit_doors = self.door_codes
+        exit_doors = []
+        for i in allowed_doors:
+            exit_doors.append(self.door_codes[i])
+
         exit_door_indices = [self.codes.index(v) for v in exit_doors]
 
         shortest_distance = float("inf")
@@ -665,7 +668,12 @@ class InsideWaypoints:
 
         coordinates = [self.coordinates[i] for i in shortest_path]
 
-        return coordinates, overall_nearest_door
+        # Get actual index of nearest door
+        i0 = exit_door_indices.index(overall_nearest_door)
+        exit_door_code = exit_doors[i0]
+        global_door_index = self.door_codes.index(exit_door_code)
+
+        return coordinates, global_door_index
 
 
 #
@@ -678,7 +686,7 @@ class SimSpace:
     Helper class for handling state of simulation space
     """
 
-    def __init__(self, walls, doors, seats, obstacles, handrails):
+    def __init__(self, walls, doors: list["VehicleDoor"], seats, obstacles, handrails):
         self.walls = walls
         for door in doors:
             walls.cut_out_door(door)
@@ -693,6 +701,8 @@ class SimSpace:
 
         waypoints = InsideWaypoints(standing_areas, doors)
         self.inside_waypoints = waypoints
+
+        self.exit_priority = False
 
     def draw(self, ax):
         self.walls.draw(ax)
@@ -922,7 +932,40 @@ class SimSpace:
             target_pos = seat.mounting_point
             return (seat, target_pos)
 
-    def get_path_out(self, start_position):
+    def get_path_in(self, start_pos, target_pos):
+        allowed_entrance_doors = []
+        for i in range(len(self.doors)):
+            if self.doors[i].allow_in:
+                allowed_entrance_doors.append(i)
+
+        # Inside path
+        exit_path, door_index = self.inside_waypoints.pathfind_exit(
+            target_pos, allowed_entrance_doors
+        )
+
+        inside_waypoints = list(reversed(exit_path))
+        door = self.doors[door_index]
+
+        # Outside paths, pick shortest one
+        # Just straight lines to outside holding points
+        wps = door.get_outside_waypoints()
+
+        # If exiting people have priority, ignore center waypoint
+        waypoints = np.array(wps[1:] if self.exit_priority else wps)
+        print(waypoints)
+
+        # All distances
+        vectors = waypoints - np.array(start_pos)
+        distances = np.linalg.norm(vectors, axis=1)
+        min_index = np.argmin(distances)
+        waypoint = waypoints[min_index]
+
+        # Paths are split in two parts to allow for
+        # holding logic inbetween
+
+        return [[waypoint], inside_waypoints]
+
+    def get_path_out(self, start_pos, target_pos):
         """
         Gets path from start position
 
@@ -930,4 +973,17 @@ class SimSpace:
         as well as the index of the door.
         """
 
-        return self.inside_waypoints.pathfind_exit(start_position)
+        allowed_exit_doors = []
+        for i in range(len(self.doors)):
+            if self.doors[i].allow_out:
+                allowed_exit_doors.append(i)
+
+        inside_path = self.inside_waypoints.pathfind_exit(start_pos, allowed_exit_doors)
+        door_index = inside_path[1]
+        door = self.doors[door_index]
+        outside_door_wps = door.get_outside_waypoints()
+
+        # Paths are split in two parts to allow for
+        # holding logic inbetween
+
+        return [inside_path[0], [outside_door_wps[0], target_pos]]

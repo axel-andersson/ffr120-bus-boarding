@@ -7,6 +7,7 @@ from vehicle import (
     Handrail,
 )
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 # Loosely modeled on the 18 m Volvo 7900 Electric
@@ -22,9 +23,9 @@ def articulated_bus():
         [[0, 0], [bus_length, 0], [bus_length, bus_width], [0, bus_width]]
     )
 
-    d1 = VehicleDoor("front_door", 17, 0, 1.3)
-    d2 = VehicleDoor("middle_door", 11, 0, 1.3)
-    d3 = VehicleDoor("back_door", 4.8, 0, 1.3)
+    d1 = VehicleDoor(17, 0, 1.3)
+    d2 = VehicleDoor(11, 0, 1.3)
+    d3 = VehicleDoor(4.8, 0, 1.3)
 
     #
     # Seats
@@ -120,12 +121,25 @@ def articulated_bus():
 
 
 ss = articulated_bus()
-ss.update_standing_attractiveness([[11, 2]])
+ss.doors[0].allow_out = False
+ss.doors[1].allow_out = False
+ss.doors[2].allow_in = False
 
-print(ss.find_boarding_target())
+start = [11, -2]
+end = [2.5, 1.25]
+
+path_in = ss.get_path_out(end, start)
+print(path_in)
+p = np.concat(
+    (np.array([end]), np.array(path_in[0]), np.array(path_in[1]), np.array([start]))
+)
+
 
 ax = plt.gca()
 ss.draw(ax)
 ss.draw_technical(ax)
 ax.set_aspect("equal")
+
+ax.plot(p.T[0], p.T[1])
+
 plt.show()
