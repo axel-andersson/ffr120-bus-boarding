@@ -156,13 +156,36 @@ def prime_exiting_passenger(
     return exit_path
 
 
+def prime_random_exiting_passengers(
+    vehicle: SimSpace, all_passengers, platform_rect, count
+):
+    indices = np.random.choice(np.arange(len(all_passengers)), count)
+
+    non_exiting = []
+    exiting = []
+    exit_paths = []
+
+    for i in len(all_passengers):
+        passenger = all_passengers[i]
+        if indices.contains(i):
+            exit_path = prime_exiting_passenger(
+                vehicle, passenger, all_passengers, platform_rect
+            )
+            exiting.append(passenger)
+            exit_paths.append(exit_path)
+        else:
+            non_exiting.append(passenger)
+
+    return non_exiting, exiting, exit_paths
+
+
 bus = articulated_bus()
 
 start_passengers = init_current_passengers_and_settle(bus, 10)
-wr = get_waiting_rectangle(bus, 3)
+wr = get_waiting_rectangle(bus, 2)
 waiting_passengers = init_waiting_passengers(wr, 10)
 
-prime_exiting_passenger(bus, start_passengers[0], start_passengers, wr)
+prime_random_exiting_passengers(bus, start_passengers, wr, 3)
 
 ax = plt.gca()
 bus.draw(ax)
