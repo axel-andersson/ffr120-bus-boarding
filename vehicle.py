@@ -115,7 +115,6 @@ class VehicleWalls:
 
         self.segments = segments
 
-
     def cut_out_door(self, door):
 
         door_center = np.array([door.x, door.y])
@@ -172,7 +171,9 @@ class VehicleWalls:
 
         # Add "negative" interval that removes coverage
         full = intervals + []
-        full.append(door_interval)  # This adds overlap → removed by split_remove_overlaps
+        full.append(
+            door_interval
+        )  # This adds overlap → removed by split_remove_overlaps
 
         cleaned = split_intervals_remove_overlaps(full)
 
@@ -208,6 +209,14 @@ class VehicleWalls:
                 y0 = segment[0][1]
                 y1 = segment[1][1]
                 ax.plot([x0, x1], [y0, y1], color="#a0a0a0", lw=3)
+
+    def draw(self, ax: plt.Axes):
+        for segment in self.segments:
+            x0 = segment[0][0]
+            x1 = segment[1][0]
+            y0 = segment[0][1]
+            y1 = segment[1][1]
+            ax.plot([x0, x1], [y0, y1], color="#a0a0a0", lw=3)
 
 
 class PassengerSeat:

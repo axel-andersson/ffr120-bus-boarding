@@ -30,7 +30,7 @@ def articulated_bus():
     #
     # Seats
     #
-    sw = 0.5  # Seat width
+    sw = 0.45  # Seat width
     sd = 0.8  # Seat depth, Including foot space
     y_mount = bus_width / 2  # Mounting point for seats
 
@@ -90,6 +90,10 @@ def articulated_bus():
 
     obstacles = [driver_cabin, articulation_left, articulation_right]
 
+    # Add obstacle to fill out back row if needed
+    if 5 * sw < bus_width:
+        filler_obstacle = Obstacle([0, sra_y + 2 * sw], sd, bus_width - 5 * sw)
+        obstacles += [filler_obstacle]
     #
     # Handrails
     #
@@ -137,8 +141,9 @@ p = np.concat(
 wss = ss.get_collision_wall_segments()
 
 ax = plt.gca()
-for ws in wss:
-    coords = np.array(ws).T
-    ax.plot(coords[0], coords[1])
+
+ss.draw(ax)
+ss.draw_technical(ax)
+ax.set_aspect("equal")
 
 plt.show()
