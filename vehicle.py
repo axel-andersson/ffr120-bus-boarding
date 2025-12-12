@@ -993,7 +993,7 @@ class SimSpace:
         sit_preference = (
             0
             if free_seat_count == 0
-            else EMPTY_SIT_PREFERENCE ** ((total_seat_count / free_seat_count)/1.5)
+            else EMPTY_SIT_PREFERENCE ** ((total_seat_count / free_seat_count) / 1.5)
         )  # arbitairy numbers
 
         wants_to_stand = np.random.rand() > sit_preference
@@ -1026,7 +1026,6 @@ class SimSpace:
 
         # If exiting people have priority, ignore center waypoint
         waypoints = np.array(wps[1:] if self.exit_priority else wps)
-        print(waypoints)
 
         # All distances
         vectors = waypoints - np.array(start_pos)

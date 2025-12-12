@@ -1,3 +1,4 @@
+from tkinter import Canvas, Tk
 from vehicle_definitions import articulated_bus
 from vehicle import SimSpace
 from agent import MovementAgent
@@ -110,14 +111,6 @@ def init_waiting_passengers(rect, count):
         )
         agents.append(agent)
 
-    # Settle
-    settle_time = 1
-    dt = 0.1
-
-    for t in range(int(settle_time / dt)):
-        for a in agents:
-            a.update(np.array([]), agents)
-            a.target = [a.x, a.y]
     return agents
 
 
@@ -176,23 +169,46 @@ def prime_random_exiting_passengers(
     return non_exiting, exiting
 
 
-def prime_entering_passenger(vehicle: SimSpace, agent, current_passengers):
+def prime_entering_passenger(
+    vehicle: SimSpace, agent: MovementAgent, current_passengers
+):
     seat, target_pos = vehicle.find_boarding_target()
 
-    enter_path = vehicle.get_path_in(target_pos)[1][0]
+    enter_path = vehicle.get_path_in([agent.x, agent.y], target_pos)
+    agent.pre_hold_target_queue = enter_path[0]
+    agent.post_hold_target_queue = enter_path[1]
+
     if seat is not None:
         seat.is_occupied = True
     else:
-        vehicle.update_standing_attractiveness(current_passengers + target_pos)
+        current_pos = [[p.x, p.y] for p in current_passengers]
+        vehicle.update_standing_attractiveness(current_pos + [target_pos])
 
     # Adjust agent position to be closer to doors
     # This simulates people usually entering through the closest door
 
-    CLOSENESS_WEIGHT = 4
-    x = (CLOSENESS_WEIGHT * enter_path[0][0] + agent.x) / (CLOSENESS_WEIGHT + 1)
-    y = (CLOSENESS_WEIGHT * enter_path[0][1] + agent.x) / (CLOSENESS_WEIGHT + 1)
-    
-    return [x, y]
+    CLOSENESS_WEIGHT = 1
+    x = (CLOSENESS_WEIGHT * enter_path[0][0][0] + agent.x) / (CLOSENESS_WEIGHT + 1)
+
+    agent.x = x
+    agent.target = [x, agent.y]
+
+
+def prime_all_entering_passengers(
+    vehicle: SimSpace, entering: list["MovementAgent"], current_passengers
+):
+    for agent in entering:
+        prime_entering_passenger(vehicle, agent, current_passengers)
+
+    # Settle
+    settle_time = 0.5
+    dt = 0.1
+
+    for t in range(int(settle_time / dt)):
+        for a in entering:
+            a.update(np.array([]), entering)
+            a.target = [a.x, a.y]
+    return entering
 
 
 def start_exiting_passenger(agent: MovementAgent):
@@ -217,10 +233,16 @@ bus = articulated_bus()
 
 start_passengers = init_current_passengers_and_settle(bus, 10)
 wr = get_waiting_rectangle(bus, 2)
+
+exiting_passengers, remaining_passengers = prime_random_exiting_passengers(
+    bus, start_passengers, wr, 3
+)
 waiting_passengers = init_waiting_passengers(wr, 10)
 
-prime_random_exiting_passengers(bus, start_passengers, wr, 3)
+for p in waiting_passengers:
+    prime_entering_passenger(bus, p, remaining_passengers)
 
+"""
 ax = plt.gca()
 bus.draw(ax)
 
@@ -242,3 +264,102 @@ area_rect = Rectangle(
 ax.add_patch(area_rect)
 
 plt.show()
+"""
+
+
+window_size = 600
+tk = Tk()
+tk.geometry(f"{window_size + 20}x{window_size + 20}")
+tk.configure(background="#000000")
+canvas = Canvas(tk, background="#ECECEC")
+tk.attributes("-topmost", 0)
+canvas.place(x=10, y=10, height=window_size, width=window_size)
+
+
+# --- world → screen mapping ---
+world_min_x, world_max_x = -2.0, 20.0
+world_min_y, world_max_y = -5.0, 10.0
+
+
+def world_to_screen(x, y):
+    sx = (x - world_min_x) / (world_max_x - world_min_x) * window_size
+    sy = window_size - (y - world_min_y) / (world_max_y - world_min_y) * window_size
+    return sx, sy
+
+
+def world_radius_to_pixels(r):
+    return r / (world_max_x - world_min_x) * window_size
+
+
+def draw_scene(
+    vehicle: SimSpace,
+    entering_agents: list["MovementAgent"],
+    exiting_agents,
+    still_agents,
+):
+    canvas.delete("all")
+
+    walls = vehicle.get_collision_wall_segments()
+
+    # draw walls
+    for w in walls:
+        (x1, y1), (x2, y2) = w
+        sx1, sy1 = world_to_screen(x1, y1)
+        sx2, sy2 = world_to_screen(x2, y2)
+        canvas.create_line(sx1, sy1, sx2, sy2, fill="black", width=3)
+
+    # draw agents
+    for i, ag in enumerate(entering_agents):
+        sx, sy = world_to_screen(ag.x, ag.y)
+        r_pix = world_radius_to_pixels(ag.radius)
+
+        canvas.create_oval(sx - r_pix, sy - r_pix, sx + r_pix, sy + r_pix, fill="green")
+        canvas.create_text(sx, sy - 10, text=str(i + 1), fill="black")
+
+    for i, ag in enumerate(exiting_agents):
+        sx, sy = world_to_screen(ag.x, ag.y)
+        r_pix = world_radius_to_pixels(ag.radius)
+
+        canvas.create_oval(sx - r_pix, sy - r_pix, sx + r_pix, sy + r_pix, fill="red")
+        canvas.create_text(sx, sy - 10, text=str(i + 1), fill="black")
+
+    for i, ag in enumerate(still_agents):
+        sx, sy = world_to_screen(ag.x, ag.y)
+        r_pix = world_radius_to_pixels(ag.radius)
+
+        canvas.create_oval(sx - r_pix, sy - r_pix, sx + r_pix, sy + r_pix, fill="blue")
+        canvas.create_text(sx, sy - 10, text=str(i + 1), fill="black")
+
+
+T_STEPS = 600
+step = 0
+
+
+def sim_step(
+    vehicle: SimSpace,
+    entering_agents: list["MovementAgent"],
+    exiting_agents,
+    still_agents,
+):
+    global step
+    if step >= T_STEPS:
+        return
+
+    walls = np.array(vehicle.get_collision_wall_segments())
+    all_agents = entering_agents + exiting_agents + still_agents
+
+    for ag in all_agents:
+        ag.update(walls, all_agents)
+
+    draw_scene(vehicle, entering_agents, exiting_agents, still_agents)
+    step += 1
+    rich_sim_step = lambda : sim_step(
+        vehicle, entering_agents, exiting_agents, still_agents
+    )
+    tk.after(50, rich_sim_step)
+
+
+# start
+draw_scene(bus, waiting_passengers, exiting_passengers, remaining_passengers)
+tk.after(50, sim_step(bus, waiting_passengers, exiting_passengers, remaining_passengers))
+tk.mainloop()
