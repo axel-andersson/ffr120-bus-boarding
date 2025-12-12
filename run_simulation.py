@@ -122,7 +122,7 @@ def init_waiting_passengers(rect, count):
 
 
 def prime_exiting_passenger(
-    vehicle: SimSpace, passenger, all_passengers, platform_rect
+    vehicle: SimSpace, passenger: MovementAgent, all_passengers, platform_rect
 ):
     seats = vehicle.seats
     seat_positions = [s.get_center() for s in seats]
@@ -153,7 +153,8 @@ def prime_exiting_passenger(
 
     # Get two-parted exit path
     exit_path = vehicle.get_path_out(pathfind_start_point, target_pos)
-    return exit_path
+    passenger.pre_hold_target_queue = exit_path[0]
+    passenger.post_hold_target_queue = exit_path[1]
 
 
 def prime_random_exiting_passengers(
@@ -163,20 +164,53 @@ def prime_random_exiting_passengers(
 
     non_exiting = []
     exiting = []
-    exit_paths = []
 
-    for i in len(all_passengers):
+    for i in range(len(all_passengers)):
         passenger = all_passengers[i]
-        if indices.contains(i):
-            exit_path = prime_exiting_passenger(
-                vehicle, passenger, all_passengers, platform_rect
-            )
+        if i in indices.tolist():
+            prime_exiting_passenger(vehicle, passenger, all_passengers, platform_rect)
             exiting.append(passenger)
-            exit_paths.append(exit_path)
         else:
             non_exiting.append(passenger)
 
-    return non_exiting, exiting, exit_paths
+    return non_exiting, exiting
+
+
+def prime_entering_passenger(vehicle: SimSpace, agent, current_passengers):
+    seat, target_pos = vehicle.find_boarding_target()
+
+    enter_path = vehicle.get_path_in(target_pos)[1][0]
+    if seat is not None:
+        seat.is_occupied = True
+    else:
+        vehicle.update_standing_attractiveness(current_passengers + target_pos)
+
+    # Adjust agent position to be closer to doors
+    # This simulates people usually entering through the closest door
+
+    CLOSENESS_WEIGHT = 4
+    x = (CLOSENESS_WEIGHT * enter_path[0][0] + agent.x) / (CLOSENESS_WEIGHT + 1)
+    y = (CLOSENESS_WEIGHT * enter_path[0][1] + agent.x) / (CLOSENESS_WEIGHT + 1)
+    
+    return [x, y]
+
+
+def start_exiting_passenger(agent: MovementAgent):
+    if agent.is_sitting:
+        agent.x = agent.mounting_point[0]
+        agent.y = agent.mounting_point[1]
+
+    agent.is_exiting = True
+    agent.target_queue = agent.pre_hold_target_queue
+
+
+# TODO FOR BASE CASE
+# - start exit for passenger
+# - start enter for passenger
+# - open doors
+# - take seat
+
+# TODO FOR EVALUATION
 
 
 bus = articulated_bus()
