@@ -51,7 +51,7 @@ class VehicleDoor:
         ax.plot([x0, x1], [y0, y1], color=color, lw=2)
 
     def get_inside_waypoint(self):
-        WP_DIST = 0.3
+        WP_DIST = 0.1
         pos = np.array([self.x, self.y])
         vec = np.array([self.x_vec, self.y_vec])
 
@@ -372,7 +372,7 @@ class StandingArea:
 
     def init_position_ranges(self):
 
-        MARGIN = 0.1
+        MARGIN = 0.2
 
         min_x = self.x
         max_x = self.x + self.width
@@ -761,6 +761,7 @@ class SimSpace:
         self.seats = seats
         self.obstacles = obstacles
         self.handrails = handrails
+        self.doors_open = False
 
         standing_area_rects = self.standing_area_rectangles()
         standing_areas = [StandingArea(rect, handrails) for rect in standing_area_rects]
@@ -1090,7 +1091,11 @@ class SimSpace:
         line_segments = deoverlap_lines(overlapping_lss + door_lss + walls)
 
         # Also include outer walls as collision
-        return line_segments + walls
+        if self.doors_open:
+            return line_segments + walls
+        else:
+            doors = [d.get_line() for d in self.doors]
+            return line_segments + walls + doors
 
 
 #

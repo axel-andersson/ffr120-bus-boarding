@@ -25,8 +25,8 @@ def init_current_passengers(vehicle: SimSpace, count):
             0,
             radius=0.22,
             epsilon=0.1,
-            box_length=2,
-            box_width=1.5,
+            box_length=1.5,
+            box_width=1,
             dt=0.1,
         )
 
@@ -56,6 +56,10 @@ def init_current_passengers_and_settle(vehicle: SimSpace, count):
         for a in agents:
             a.update(all_walls, agents)
             a.target = [a.x, a.y]
+            a.reached_final_target = True
+
+    a.v = 0
+
     return agents
 
 
@@ -105,8 +109,8 @@ def init_waiting_passengers(rect, count):
             0,
             radius=0.22,
             epsilon=0.1,
-            box_length=2,
-            box_width=1.5,
+            box_length=1.5,
+            box_width=1,
             dt=0.1,
         )
         agents.append(agent)
@@ -153,7 +157,7 @@ def prime_exiting_passenger(
 def prime_random_exiting_passengers(
     vehicle: SimSpace, all_passengers, platform_rect, count
 ):
-    indices = np.random.choice(np.arange(len(all_passengers)), count)
+    indices = np.random.choice(list(range(len(all_passengers))), count)
 
     non_exiting = []
     exiting = []
@@ -187,7 +191,7 @@ def prime_entering_passenger(
     # Adjust agent position to be closer to doors
     # This simulates people usually entering through the closest door
 
-    CLOSENESS_WEIGHT = 1
+    CLOSENESS_WEIGHT = 5
     x = (CLOSENESS_WEIGHT * enter_path[0][0][0] + agent.x) / (CLOSENESS_WEIGHT + 1)
 
     agent.x = x
@@ -208,6 +212,9 @@ def prime_all_entering_passengers(
         for a in entering:
             a.update(np.array([]), entering)
             a.target = [a.x, a.y]
+            a.reached_final_target = True
+    a.v = 0
+
     return entering
 
 
@@ -215,9 +222,13 @@ def start_exiting_passenger(agent: MovementAgent):
     if agent.is_sitting:
         agent.x = agent.mounting_point[0]
         agent.y = agent.mounting_point[1]
+        agent.is_sitting = False
 
     agent.is_exiting = True
-    agent.target_queue = agent.pre_hold_target_queue
+    agent.target_queue = agent.pre_hold_target_queue[1:]
+    agent.target = agent.pre_hold_target_queue[0]
+    agent.reached_final_target = False
+    
 
 
 # TODO FOR BASE CASE
@@ -231,16 +242,20 @@ def start_exiting_passenger(agent: MovementAgent):
 
 bus = articulated_bus()
 
-start_passengers = init_current_passengers_and_settle(bus, 10)
+start_passengers = init_current_passengers_and_settle(bus, 80)
 wr = get_waiting_rectangle(bus, 2)
 
-exiting_passengers, remaining_passengers = prime_random_exiting_passengers(
-    bus, start_passengers, wr, 3
-)
-waiting_passengers = init_waiting_passengers(wr, 10)
+waiting_passengers = init_waiting_passengers(wr, 1)
 
-for p in waiting_passengers:
-    prime_entering_passenger(bus, p, remaining_passengers)
+
+remaining_passengers, exiting_passengers = prime_random_exiting_passengers(
+    bus, start_passengers, wr, 10
+)
+
+for p in exiting_passengers:
+    start_exiting_passenger(p)
+
+prime_all_entering_passengers(bus, waiting_passengers, remaining_passengers)
 
 """
 ax = plt.gca()
@@ -331,7 +346,7 @@ def draw_scene(
         canvas.create_text(sx, sy - 10, text=str(i + 1), fill="black")
 
 
-T_STEPS = 600
+T_STEPS = 5000
 step = 0
 
 
@@ -353,7 +368,7 @@ def sim_step(
 
     draw_scene(vehicle, entering_agents, exiting_agents, still_agents)
     step += 1
-    rich_sim_step = lambda : sim_step(
+    rich_sim_step = lambda: sim_step(
         vehicle, entering_agents, exiting_agents, still_agents
     )
     tk.after(50, rich_sim_step)
@@ -361,5 +376,7 @@ def sim_step(
 
 # start
 draw_scene(bus, waiting_passengers, exiting_passengers, remaining_passengers)
-tk.after(50, sim_step(bus, waiting_passengers, exiting_passengers, remaining_passengers))
+tk.after(
+    50, sim_step(bus, waiting_passengers, exiting_passengers, remaining_passengers)
+)
 tk.mainloop()

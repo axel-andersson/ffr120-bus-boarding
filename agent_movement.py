@@ -143,17 +143,17 @@ def filter_walls(x, y, phi, box_width, box_length, walls):
 
         # Are any of the points inside the range?
         if (
-            x1 >= 0,
-            x1 <= box_length,
-            y1 >= -box_width / 2,
-            y1 <= box_width / 2,
+            x1 >= 0
+            and x1 <= box_length
+            and y1 >= -box_width / 2
+            and y1 <= box_width / 2
         ):
             filtered_walls.append(walls[i])
         elif (
-            x2 >= 0,
-            x2 <= box_length,
-            y2 >= -box_width / 2,
-            y2 <= box_width / 2,
+            x2 >= 0
+            and x2 <= box_length
+            and y2 >= -box_width / 2
+            and y2 <= box_width / 2
         ):
             filtered_walls.append(walls[i])
 

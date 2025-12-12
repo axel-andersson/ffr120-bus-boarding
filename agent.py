@@ -13,8 +13,8 @@ class MovementAgent:
     # ─── Initialization ─────────────────────────────
     def __init__(self, x, y, angle, radius, epsilon, box_length, box_width, dt=0.1):
         # Force weights
-        self.attractor_weight = 7
-        self.wall_weight = 3
+        self.attractor_weight = 5
+        self.wall_weight = 0.1
         self.other_agents_weight = 2
 
         # Position and movement
@@ -50,9 +50,9 @@ class MovementAgent:
         self.ticket_check_radius = 1  # <------ how far from ticket check point you must be to stop and check your ticket
 
         # Movement modifiers
-        self.inertia_factor = 0.2
-        self.repulsion_scale = 0.1
-        self.repulsion_stopping_threshold = 0.2
+        self.inertia_factor = 0.1
+        self.repulsion_scale = 0.5
+        self.repulsion_stopping_threshold = 0.1
         self.stopping_probability = 0.4
 
         # Geometry and environment
@@ -71,7 +71,7 @@ class MovementAgent:
         self.waiting_rule = False
         self.wait_timer = 0
         self.wait_disk_radius = 0.5
-        self.wait_duration_range = (0.5, 3)  # in seconds
+        self.wait_duration_range = (0.2, 1.5)  # in seconds
 
         # Dynamic speed limits near goal
         self.v_far = 1.0  # Max speed far from target
@@ -117,7 +117,7 @@ class MovementAgent:
             others_radius = np.zeros((0,))
 
         attractor_force = f_attractor(state, self.target)
-        walls_force = f_walls(self, walls, self.box_length, self.box_width)
+        walls_force = f_walls(self, walls, self.box_width, self.box_length)
         other_agents_force = f_other_agents(
             state, other_states, self.box_length, self.box_width
         )
@@ -148,7 +148,14 @@ class MovementAgent:
             others_radius,
         )
 
-        return F_to_vec, repulsion, f_rep_agents
+        WALKING_PRIORITY = 10
+        f_rep_agents_modified = (
+            f_rep_agents / WALKING_PRIORITY
+            if self.is_entering or self.is_exiting
+            else f_rep_agents
+        )
+
+        return F_to_vec, repulsion, f_rep_agents_modified
 
     # ─── Handle repulsion-based stopping rule ───────
     def _update_stopping_rule(self, f_rep_agents: np.array):
@@ -180,10 +187,12 @@ class MovementAgent:
     # ─── Handle waiting rule based on influence disk ───────
     def check_waiting_zone(self, agents: list["MovementAgent"]):
 
+        waitable_agents = list(filter(lambda a: a.is_exiting or a.is_entering, agents))
+
         my_pos = np.array([self.x, self.y])
         fwd = np.array([np.cos(self.angle), np.sin(self.angle)])
 
-        for other in agents:
+        for other in waitable_agents:
             if other is self:
                 continue
 
@@ -209,7 +218,8 @@ class MovementAgent:
         to_target = self.target - pos
         dist = np.linalg.norm(to_target)
 
-        if dist < 0.5:
+        if dist < 0.3:
+
             self.target, self.target_queue = self.set_target()
             to_target = self.target - pos
             dist = np.linalg.norm(to_target)
@@ -240,15 +250,10 @@ class MovementAgent:
         # Stop if at goal (last attractor) and also set
         # to move
         stop_radius = self.radius + 0.1
-        if (
-            dist < stop_radius
-            and is_final_target
-            and (self.is_entering or self.is_exiting)
-        ):
+        if dist < stop_radius and is_final_target:
             self.v = 0.0
             self.last_force = np.array([0.0, 0.0])
             self.reached_final_target = True
-            return
 
         # Queuing behavior: influence disk
         if not self.waiting_rule and self.check_waiting_zone(agents):
