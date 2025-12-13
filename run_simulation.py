@@ -253,7 +253,7 @@ bus = articulated_bus()
 bus.exit_priority = True  # Fixes unrealistically large clashes
 
 start_passengers = init_current_passengers_and_settle(bus, 30)
-wr = get_waiting_rectangle(bus, 2)
+wr = get_waiting_rectangle(bus, 1.5)
 
 waiting_passengers = init_waiting_passengers(wr, 5)
 
