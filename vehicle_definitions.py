@@ -102,7 +102,7 @@ def articulated_bus():
     front_handrails = [
         Handrail([10.1, 2.5], [12.8, 2.5]),
         Handrail([10.1, 2], [12.8, 2]),
-        Handrail([10.1, 0.75], [12.8, 0.75]),
+        Handrail([10.1, 1.5], [12.8, 1.5]),
     ]
 
     # Middle standing area
@@ -115,7 +115,7 @@ def articulated_bus():
     back_handrails = [
         Handrail([4, 2.5], [6.5, 2.5]),
         Handrail([4, 2], [6, 2]),
-        Handrail([4.2, 0.75], [5.5, 0.75]),
+        Handrail([4.2, 1.5], [5.5, 1.5]),
     ]
 
     handrails = front_handrails + middle_handrails + back_handrails

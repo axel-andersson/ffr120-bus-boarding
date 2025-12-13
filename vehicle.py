@@ -51,7 +51,7 @@ class VehicleDoor:
         ax.plot([x0, x1], [y0, y1], color=color, lw=2)
 
     def get_inside_waypoint(self):
-        WP_DIST = 0.1
+        WP_DIST = 0.6
         pos = np.array([self.x, self.y])
         vec = np.array([self.x_vec, self.y_vec])
 
@@ -59,8 +59,8 @@ class VehicleDoor:
         return pos + WP_DIST * a @ vec
 
     def get_outside_waypoints(self):
-        WP_DIST = 0.5
-        SIDE_MULT = 1.3
+        WP_DIST = 0.6
+        SIDE_MULT = 0.8
         pos = np.array([self.x, self.y])
         vec = np.array([self.x_vec, self.y_vec])
 
@@ -604,7 +604,7 @@ class InsideWaypoints:
     def get_area_waypoints(self):
         area_boundary_lines = self.get_area_boundary_lines()
 
-        MAX_WAYPOINT_SPACE = 0.4
+        MAX_WAYPOINT_SPACE = 0.3
         waypoints = []
         for i, j, segment in area_boundary_lines:
             p0 = segment[0]
@@ -1018,7 +1018,7 @@ class SimSpace:
             target_pos, allowed_entrance_doors
         )
 
-        inside_waypoints = list(reversed(exit_path))
+        inside_waypoints = list(reversed(exit_path)) + [target_pos]
         door = self.doors[door_index]
 
         # Outside paths, pick shortest one

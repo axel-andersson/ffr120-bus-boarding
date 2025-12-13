@@ -147,6 +147,8 @@ def prime_exiting_passenger(
         pathfind_start_point = passenger.mounting_point
 
     target_pos = get_random_rect_point(platform_rect)
+    # Make them walk further away
+    target_pos[1] -= platform_rect[1][1] - platform_rect[0][1]
 
     # Get two-parted exit path
     exit_path = vehicle.get_path_out(pathfind_start_point, target_pos)
@@ -191,7 +193,7 @@ def prime_entering_passenger(
     # Adjust agent position to be closer to doors
     # This simulates people usually entering through the closest door
 
-    CLOSENESS_WEIGHT = 5
+    CLOSENESS_WEIGHT = 2
     x = (CLOSENESS_WEIGHT * enter_path[0][0][0] + agent.x) / (CLOSENESS_WEIGHT + 1)
 
     agent.x = x
@@ -228,28 +230,34 @@ def start_exiting_passenger(agent: MovementAgent):
     agent.target_queue = agent.pre_hold_target_queue[1:]
     agent.target = agent.pre_hold_target_queue[0]
     agent.reached_final_target = False
-    
+    agent.stress = True
+
+
+def start_entering_passenger(agent: MovementAgent):
+
+    agent.is_entering = True
+    agent.target_queue = agent.pre_hold_target_queue[1:]
+    agent.target = agent.pre_hold_target_queue[0]
+    agent.reached_final_target = False
 
 
 # TODO FOR BASE CASE
-# - start exit for passenger
-# - start enter for passenger
-# - open doors
 # - take seat
 
 # TODO FOR EVALUATION
 
 
 bus = articulated_bus()
+bus.exit_priority = True # Fixes unrealistically large clashes
 
-start_passengers = init_current_passengers_and_settle(bus, 80)
+start_passengers = init_current_passengers_and_settle(bus, 100)
 wr = get_waiting_rectangle(bus, 2)
 
-waiting_passengers = init_waiting_passengers(wr, 1)
+waiting_passengers = init_waiting_passengers(wr, 15)
 
 
 remaining_passengers, exiting_passengers = prime_random_exiting_passengers(
-    bus, start_passengers, wr, 10
+    bus, start_passengers, wr, 15
 )
 
 for p in exiting_passengers:
@@ -346,8 +354,10 @@ def draw_scene(
         canvas.create_text(sx, sy - 10, text=str(i + 1), fill="black")
 
 
-T_STEPS = 5000
+T_STEPS = 1000
 step = 0
+
+OPENING_STEP = 30
 
 
 def sim_step(
@@ -363,6 +373,13 @@ def sim_step(
     walls = np.array(vehicle.get_collision_wall_segments())
     all_agents = entering_agents + exiting_agents + still_agents
 
+    if step == OPENING_STEP:
+        vehicle.doors_open = True
+        for p in waiting_passengers:
+            start_entering_passenger(p)
+        for agent in all_agents:
+            agent.target_queue += agent.post_hold_target_queue
+
     for ag in all_agents:
         ag.update(walls, all_agents)
 
@@ -371,12 +388,12 @@ def sim_step(
     rich_sim_step = lambda: sim_step(
         vehicle, entering_agents, exiting_agents, still_agents
     )
-    tk.after(50, rich_sim_step)
+    tk.after(100, rich_sim_step)
 
 
 # start
 draw_scene(bus, waiting_passengers, exiting_passengers, remaining_passengers)
 tk.after(
-    50, sim_step(bus, waiting_passengers, exiting_passengers, remaining_passengers)
+    100, sim_step(bus, waiting_passengers, exiting_passengers, remaining_passengers)
 )
 tk.mainloop()

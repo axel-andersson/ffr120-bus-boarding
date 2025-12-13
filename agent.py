@@ -51,9 +51,9 @@ class MovementAgent:
 
         # Movement modifiers
         self.inertia_factor = 0.1
-        self.repulsion_scale = 0.5
+        self.repulsion_scale = 0.05
         self.repulsion_stopping_threshold = 0.1
-        self.stopping_probability = 0.4
+        self.stopping_probability = 0.2
 
         # Geometry and environment
         self.radius = radius
@@ -71,13 +71,13 @@ class MovementAgent:
         self.waiting_rule = False
         self.wait_timer = 0
         self.wait_disk_radius = 0.5
-        self.wait_duration_range = (0.2, 1.5)  # in seconds
+        self.wait_duration_range = (0.2, 0.7)  # in seconds
 
         # Dynamic speed limits near goal
-        self.v_far = 1.0  # Max speed far from target
+        self.v_far = 1  # Max speed far from target
         self.v_min = 0.2  # Minimum allowed v_max
         self.v_max = self.v_far
-        self.brake_radius = 2.0  # Start slowing down within this distance
+        self.brake_radius = 1.0  # Start slowing down within this distance
 
     # ─── Agent state as array ───────────────────────
     def state(self):
@@ -187,7 +187,12 @@ class MovementAgent:
     # ─── Handle waiting rule based on influence disk ───────
     def check_waiting_zone(self, agents: list["MovementAgent"]):
 
-        waitable_agents = list(filter(lambda a: a.is_exiting or a.is_entering, agents))
+        if self.is_entering:
+            waitable_agents = list(filter(lambda a: a.is_entering, agents))
+        elif self.is_exiting:
+            waitable_agents = list(filter(lambda a: a.is_exiting, agents))
+        else:
+            waitable_agents = []
 
         my_pos = np.array([self.x, self.y])
         fwd = np.array([np.cos(self.angle), np.sin(self.angle)])
@@ -218,8 +223,7 @@ class MovementAgent:
         to_target = self.target - pos
         dist = np.linalg.norm(to_target)
 
-        if dist < 0.3:
-
+        if dist < 0.6:
             self.target, self.target_queue = self.set_target()
             to_target = self.target - pos
             dist = np.linalg.norm(to_target)
@@ -281,7 +285,8 @@ class MovementAgent:
 
         # precis innan du beräknar alpha:
         if reason:
-            print(f"Agent debug: x={self.x:.2f}, y={self.y:.2f}, orsaker: {reason}")
+            pass
+            # print(f"Agent debug: x={self.x:.2f}, y={self.y:.2f}, orsaker: {reason}")
 
         # Move as long as not stop because of various reasons
         alpha = (
