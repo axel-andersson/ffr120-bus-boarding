@@ -102,7 +102,7 @@ def world_radius_to_pixels(r):
 def draw_scene():
     canvas.delete("all")
     # draw ticket check point (radius 1)
-    tx, ty = world_to_screen(agent1.ticket_check_pos[0], agent1.ticket_check_pos[1])
+    tx, ty = world_to_screen(agent1.ticket_check_y[0], agent1.ticket_check_y[1])
     ticket_r = world_radius_to_pixels(1)
 
     canvas.create_oval(

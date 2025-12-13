@@ -42,13 +42,12 @@ class MovementAgent:
         self.reached_final_target = False
 
         # Ticket control check
-        self.ticket_check_pos = np.array(
-            [3, 2.5]
-        )  # <-------- one point where ticket check is being made
+        self.ticket_check_y = 0.8
+        self.must_check_ticket = False
         self.ticket_checked = False
         self.checking_ticket = False
-        self.check_ticket_duration_range = (0.5, 3)  # in seconds
-        self.ticket_check_radius = 1  # <------ how far from ticket check point you must be to stop and check your ticket
+        self.check_ticket_duration_range = (0.5, 2)  # in seconds
+        self.ticket_check_radius = 0.3
 
         # Movement modifiers
         self.inertia_factor = 0.1
@@ -99,9 +98,7 @@ class MovementAgent:
     # ─── Stop if  position is at ticket control position ────
     def check_ticket(self):
 
-        pos = np.array([self.x, self.y])
-        to_ticket_control = self.ticket_check_pos - pos
-        dist = np.linalg.norm(to_ticket_control)
+        dist = np.abs(self.ticket_check_y - self.y)
 
         if dist < self.ticket_check_radius:
             return True
@@ -239,7 +236,7 @@ class MovementAgent:
             self.v_max = self.v_far
 
         # Stop if ticket check is required
-        if not self.ticket_checked and self.check_ticket():
+        if not self.ticket_checked and self.must_check_ticket and self.check_ticket():
             self.ticket_checked = True
             self.checking_ticket = True
             duration_s = np.random.uniform(

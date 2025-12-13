@@ -243,82 +243,229 @@ def start_entering_passenger(agent: MovementAgent):
     agent.reached_final_target = False
 
 
-# TODO FOR BASE CASE
-# - take seat
-
-# TODO FOR EVALUATION
-
-
-bus = articulated_bus()
-bus.exit_priority = True  # Fixes unrealistically large clashes
-
-start_passengers = init_current_passengers_and_settle(bus, 30)
-wr = get_waiting_rectangle(bus, 1.5)
-
-waiting_passengers = init_waiting_passengers(wr, 5)
-
-
-remaining_passengers, exiting_passengers = prime_random_exiting_passengers(
-    bus, start_passengers, wr, 5
-)
-
-for p in exiting_passengers:
-    start_exiting_passenger(p)
-
-prime_all_entering_passengers(bus, waiting_passengers, remaining_passengers)
-
-
-T_STEPS = 1000
-step = 0
-
-OPENING_STEP = 20
-
-window_size, tk, canvas = setup_win()
-
-
-def sim_step(
-    vehicle: SimSpace,
-    entering_agents: list["MovementAgent"],
-    exiting_agents,
-    still_agents,
+def visualize_bus_dynamics(
+    current_passenger_count,
+    exitng_passenger_count,
+    entering_pasenger_count,
+    front_door_only,
+    check_tickets,
+    file_name,
 ):
-    global step
-    if step >= T_STEPS:
+
+    bus = articulated_bus()
+    bus.exit_priority = True  # Fixes unrealistically large clashes
+
+    if front_door_only:
+        bus.doors[0].allow_out = False
+        bus.doors[1].allow_in = False
+        bus.doors[2].allow_in = False
+
+    start_passengers = init_current_passengers_and_settle(bus, current_passenger_count)
+    wr = get_waiting_rectangle(bus, 1.5)
+
+    waiting_passengers = init_waiting_passengers(wr, entering_pasenger_count)
+
+    remaining_passengers, exiting_passengers = prime_random_exiting_passengers(
+        bus, start_passengers, wr, exitng_passenger_count
+    )
+
+    for p in exiting_passengers:
+        start_exiting_passenger(p)
+
+    prime_all_entering_passengers(bus, waiting_passengers, remaining_passengers)
+
+    if check_tickets:
+        for a in waiting_passengers:
+            a.must_check_ticket = True
+
+    MAX_T_STEPS = 1000
+
+    OPENING_STEP = 20
+
+    # Used for run termination check
+    exit_offset = 0.5
+    enter_offset = 0.2
+
+    # Used for final evaluation
+    step_size = 0.1
+    complete_step = None
+
+    window_size, tk, canvas = setup_win()
+
+    def sim_step(
+        vehicle: SimSpace,
+        entering_agents: list["MovementAgent"],
+        exiting_agents,
+        still_agents,
+        last_step,
+    ):
+        step = last_step
+        if step >= MAX_T_STEPS:
+            return
+
+        walls = np.array(vehicle.get_collision_wall_segments())
+        all_agents = entering_agents + exiting_agents + still_agents
+
+        if step == OPENING_STEP:
+            vehicle.doors_open = True
+            for p in waiting_passengers:
+                start_entering_passenger(p)
+            for agent in all_agents:
+                agent.target_queue += agent.post_hold_target_queue
+
+        exiting_eval = True
+        entering_eval = True
+        for ag in all_agents:
+            ag.update(walls, all_agents)
+
+            # Check exiting status
+            if ag.is_exiting and ag.y >= -exit_offset:
+                exiting_eval = False
+
+            # Check entering status
+            if ag.is_entering and ag.y <= enter_offset:
+                entering_eval = False
+
+        if exiting_eval and entering_eval:
+            nonlocal complete_step
+            complete_step = step
+            return
+
+        draw_scene(
+            vehicle, entering_agents, exiting_agents, still_agents, canvas, window_size
+        )
+        step += 1
+        rich_sim_step = lambda: sim_step(
+            vehicle, entering_agents, exiting_agents, still_agents, step
+        )
+        tk.after(100, rich_sim_step)
+
+    # start
+    draw_scene(
+        bus,
+        waiting_passengers,
+        exiting_passengers,
+        remaining_passengers,
+        canvas,
+        window_size,
+    )
+    tk.after(
+        100,
+        sim_step(bus, waiting_passengers, exiting_passengers, remaining_passengers, 0),
+    )
+    tk.mainloop()
+
+    # Handle results
+
+    if complete_step is None:
+        print("RUN DID NOT COMPLETE")
         return
 
-    walls = np.array(vehicle.get_collision_wall_segments())
-    all_agents = entering_agents + exiting_agents + still_agents
+    elapsed_time = complete_step * step_size
+    print("ET", elapsed_time)
 
-    if step == OPENING_STEP:
-        vehicle.doors_open = True
-        for p in waiting_passengers:
-            start_entering_passenger(p)
-        for agent in all_agents:
-            agent.target_queue += agent.post_hold_target_queue
 
-    for ag in all_agents:
-        ag.update(walls, all_agents)
+def evaluate_bus_dynamics(
+    current_passenger_count,
+    exitng_passenger_count,
+    entering_pasenger_count,
+    front_door_only,
+    check_tickets,
+    file_name,
+):
 
-    draw_scene(
-        vehicle, entering_agents, exiting_agents, still_agents, canvas, window_size
+    bus = articulated_bus()
+    bus.exit_priority = True  # Fixes unrealistically large clashes
+
+    if front_door_only:
+        bus.doors[0].allow_out = False
+        bus.doors[1].allow_in = False
+        bus.doors[2].allow_in = False
+
+    start_passengers = init_current_passengers_and_settle(bus, current_passenger_count)
+    wr = get_waiting_rectangle(bus, 1.5)
+
+    waiting_passengers = init_waiting_passengers(wr, entering_pasenger_count)
+
+    remaining_passengers, exiting_passengers = prime_random_exiting_passengers(
+        bus, start_passengers, wr, exitng_passenger_count
     )
-    step += 1
-    rich_sim_step = lambda: sim_step(
-        vehicle, entering_agents, exiting_agents, still_agents
-    )
-    tk.after(100, rich_sim_step)
 
+    for p in exiting_passengers:
+        start_exiting_passenger(p)
 
-# start
-draw_scene(
-    bus,
-    waiting_passengers,
-    exiting_passengers,
-    remaining_passengers,
-    canvas,
-    window_size,
-)
-tk.after(
-    100, sim_step(bus, waiting_passengers, exiting_passengers, remaining_passengers)
-)
-tk.mainloop()
+    prime_all_entering_passengers(bus, waiting_passengers, remaining_passengers)
+
+    if check_tickets:
+        for a in waiting_passengers:
+            a.must_check_ticket = True
+
+    MAX_T_STEPS = 1000
+
+    OPENING_STEP = 20
+
+    # Used for run termination check
+    exit_offset = 0.5
+    enter_offset = 0.2
+
+    # Used for final evaluation
+    step_size = 0.1
+    complete_step = None
+
+    window_size, tk, canvas = setup_win()
+
+    def sim_step(
+        vehicle: SimSpace,
+        entering_agents: list["MovementAgent"],
+        exiting_agents,
+        still_agents,
+        last_step,
+    ):
+        step = last_step
+        if step >= MAX_T_STEPS:
+            return
+
+        walls = np.array(vehicle.get_collision_wall_segments())
+        all_agents = entering_agents + exiting_agents + still_agents
+
+        if step == OPENING_STEP:
+            vehicle.doors_open = True
+            for p in waiting_passengers:
+                start_entering_passenger(p)
+            for agent in all_agents:
+                agent.target_queue += agent.post_hold_target_queue
+
+        exiting_eval = True
+        entering_eval = True
+        for ag in all_agents:
+            ag.update(walls, all_agents)
+
+            # Check exiting status
+            if ag.is_exiting and ag.y >= -exit_offset:
+                exiting_eval = False
+
+            # Check entering status
+            if ag.is_entering and ag.y <= enter_offset:
+                entering_eval = False
+
+        if exiting_eval and entering_eval:
+            nonlocal complete_step
+            complete_step = step
+            return
+
+        step += 1
+        sim_step(vehicle, entering_agents, exiting_agents, still_agents, step)
+
+    # start
+    sim_step(bus, waiting_passengers, exiting_passengers, remaining_passengers, 0)
+
+    # Handle results
+
+    if complete_step is None:
+        print("RUN DID NOT COMPLETE")
+        return
+
+    elapsed_time = complete_step * step_size
+
+    with open(file_name, "a") as f:
+        np.savetxt(f, [elapsed_time], delimiter=",")
