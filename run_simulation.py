@@ -1,4 +1,5 @@
 from tkinter import Canvas, Tk
+from real_time_visualization import draw_scene, setup_win
 from vehicle_definitions import articulated_bus
 from vehicle import SimSpace
 from agent import MovementAgent
@@ -183,6 +184,7 @@ def prime_entering_passenger(
     enter_path = vehicle.get_path_in([agent.x, agent.y], target_pos)
     agent.pre_hold_target_queue = enter_path[0]
     agent.post_hold_target_queue = enter_path[1]
+    agent.target_seat = seat
 
     if seat is not None:
         seat.is_occupied = True
@@ -248,16 +250,16 @@ def start_entering_passenger(agent: MovementAgent):
 
 
 bus = articulated_bus()
-bus.exit_priority = True # Fixes unrealistically large clashes
+bus.exit_priority = True  # Fixes unrealistically large clashes
 
-start_passengers = init_current_passengers_and_settle(bus, 100)
+start_passengers = init_current_passengers_and_settle(bus, 30)
 wr = get_waiting_rectangle(bus, 2)
 
-waiting_passengers = init_waiting_passengers(wr, 15)
+waiting_passengers = init_waiting_passengers(wr, 5)
 
 
 remaining_passengers, exiting_passengers = prime_random_exiting_passengers(
-    bus, start_passengers, wr, 15
+    bus, start_passengers, wr, 5
 )
 
 for p in exiting_passengers:
@@ -265,99 +267,13 @@ for p in exiting_passengers:
 
 prime_all_entering_passengers(bus, waiting_passengers, remaining_passengers)
 
-"""
-ax = plt.gca()
-bus.draw(ax)
-
-ax.set_aspect("equal")
-
-for p in start_passengers:
-    ellipse = Ellipse((p.x, p.y), p.radius * 2, p.radius * 2, fc="#ff2adf")
-    ax.add_patch(ellipse)
-
-for p in waiting_passengers:
-    ellipse = Ellipse((p.x, p.y), p.radius * 2, p.radius * 2, fc="#2f52ff")
-    ax.add_patch(ellipse)
-
-print(wr)
-
-area_rect = Rectangle(
-    wr[0], wr[1][0] - wr[0][0], wr[1][1] - wr[0][1], fc="#00000000", ec="#0000ff"
-)
-ax.add_patch(area_rect)
-
-plt.show()
-"""
-
-
-window_size = 600
-tk = Tk()
-tk.geometry(f"{window_size + 20}x{window_size + 20}")
-tk.configure(background="#000000")
-canvas = Canvas(tk, background="#ECECEC")
-tk.attributes("-topmost", 0)
-canvas.place(x=10, y=10, height=window_size, width=window_size)
-
-
-# --- world → screen mapping ---
-world_min_x, world_max_x = -2.0, 20.0
-world_min_y, world_max_y = -5.0, 10.0
-
-
-def world_to_screen(x, y):
-    sx = (x - world_min_x) / (world_max_x - world_min_x) * window_size
-    sy = window_size - (y - world_min_y) / (world_max_y - world_min_y) * window_size
-    return sx, sy
-
-
-def world_radius_to_pixels(r):
-    return r / (world_max_x - world_min_x) * window_size
-
-
-def draw_scene(
-    vehicle: SimSpace,
-    entering_agents: list["MovementAgent"],
-    exiting_agents,
-    still_agents,
-):
-    canvas.delete("all")
-
-    walls = vehicle.get_collision_wall_segments()
-
-    # draw walls
-    for w in walls:
-        (x1, y1), (x2, y2) = w
-        sx1, sy1 = world_to_screen(x1, y1)
-        sx2, sy2 = world_to_screen(x2, y2)
-        canvas.create_line(sx1, sy1, sx2, sy2, fill="black", width=3)
-
-    # draw agents
-    for i, ag in enumerate(entering_agents):
-        sx, sy = world_to_screen(ag.x, ag.y)
-        r_pix = world_radius_to_pixels(ag.radius)
-
-        canvas.create_oval(sx - r_pix, sy - r_pix, sx + r_pix, sy + r_pix, fill="green")
-        canvas.create_text(sx, sy - 10, text=str(i + 1), fill="black")
-
-    for i, ag in enumerate(exiting_agents):
-        sx, sy = world_to_screen(ag.x, ag.y)
-        r_pix = world_radius_to_pixels(ag.radius)
-
-        canvas.create_oval(sx - r_pix, sy - r_pix, sx + r_pix, sy + r_pix, fill="red")
-        canvas.create_text(sx, sy - 10, text=str(i + 1), fill="black")
-
-    for i, ag in enumerate(still_agents):
-        sx, sy = world_to_screen(ag.x, ag.y)
-        r_pix = world_radius_to_pixels(ag.radius)
-
-        canvas.create_oval(sx - r_pix, sy - r_pix, sx + r_pix, sy + r_pix, fill="blue")
-        canvas.create_text(sx, sy - 10, text=str(i + 1), fill="black")
-
 
 T_STEPS = 1000
 step = 0
 
-OPENING_STEP = 30
+OPENING_STEP = 20
+
+window_size, tk, canvas = setup_win()
 
 
 def sim_step(
@@ -383,7 +299,9 @@ def sim_step(
     for ag in all_agents:
         ag.update(walls, all_agents)
 
-    draw_scene(vehicle, entering_agents, exiting_agents, still_agents)
+    draw_scene(
+        vehicle, entering_agents, exiting_agents, still_agents, canvas, window_size
+    )
     step += 1
     rich_sim_step = lambda: sim_step(
         vehicle, entering_agents, exiting_agents, still_agents
@@ -392,7 +310,14 @@ def sim_step(
 
 
 # start
-draw_scene(bus, waiting_passengers, exiting_passengers, remaining_passengers)
+draw_scene(
+    bus,
+    waiting_passengers,
+    exiting_passengers,
+    remaining_passengers,
+    canvas,
+    window_size,
+)
 tk.after(
     100, sim_step(bus, waiting_passengers, exiting_passengers, remaining_passengers)
 )

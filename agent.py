@@ -31,6 +31,7 @@ class MovementAgent:
         self.mounting_point = None
         self.is_entering = False
         self.is_exiting = False
+        self.target_seat = None
 
         self.pre_hold_target_queue = []
         self.post_hold_target_queue = []
@@ -258,6 +259,12 @@ class MovementAgent:
             self.v = 0.0
             self.last_force = np.array([0.0, 0.0])
             self.reached_final_target = True
+
+            if self.target_seat is not None and self.is_entering:
+                center = self.target_seat.get_center()
+                self.is_sitting = True
+                self.x = center[0]
+                self.y = center[1]
 
         # Queuing behavior: influence disk
         if not self.waiting_rule and self.check_waiting_zone(agents):
