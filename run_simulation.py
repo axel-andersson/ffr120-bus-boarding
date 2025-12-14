@@ -471,4 +471,4 @@ def evaluate_bus_dynamics(
     elapsed_time = complete_step * step_size
 
     with open(file_name, "a") as f:
-        np.savetxt(f, [elapsed_time], delimiter=",")
+        np.savetxt(f, [elapsed_time], delimiter=",", fmt="%.6f")
