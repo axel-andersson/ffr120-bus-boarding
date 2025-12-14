@@ -202,10 +202,18 @@ class MovementAgent:
             other_pos = np.array([other.x, other.y])
             vec = other_pos - my_pos
             dist = np.linalg.norm(vec)
+
+            # distance check
             if dist > self.wait_disk_radius:
                 continue
-            # check if other is roughly in front (dot product > 0.5)
-            if np.dot(vec, fwd) / (np.linalg.norm(vec) + 1e-9) > 0.9:
+
+            # must be in front
+            if np.dot(vec, fwd) / (np.linalg.norm(vec) + 1e-9) < 0.7: # this is a cone of approx 45 degrees
+                continue
+
+            # ---- check if same dircetion: dot > 0 ----
+            other_fwd = np.array([np.cos(other.angle), np.sin(other.angle)])
+            if np.dot(fwd, other_fwd) > 0:
                 return True
 
         return False
