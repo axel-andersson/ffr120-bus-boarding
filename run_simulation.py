@@ -412,8 +412,6 @@ def evaluate_bus_dynamics(
     step_size = 0.1
     complete_step = None
 
-    window_size, tk, canvas = setup_win()
-
     def sim_step(
         vehicle: SimSpace,
         entering_agents: list["MovementAgent"],
@@ -423,7 +421,7 @@ def evaluate_bus_dynamics(
     ):
         step = last_step
         if step >= MAX_T_STEPS:
-            return
+            return False
 
         walls = np.array(vehicle.get_collision_wall_segments())
         all_agents = entering_agents + exiting_agents + still_agents
@@ -451,13 +449,18 @@ def evaluate_bus_dynamics(
         if exiting_eval and entering_eval:
             nonlocal complete_step
             complete_step = step
-            return
+            return False
 
         step += 1
-        sim_step(vehicle, entering_agents, exiting_agents, still_agents, step)
+        return True
 
     # start
-    sim_step(bus, waiting_passengers, exiting_passengers, remaining_passengers, 0)
+    for i in range(MAX_T_STEPS):
+        carry_on = sim_step(
+            bus, waiting_passengers, exiting_passengers, remaining_passengers, i
+        )
+        if not carry_on:
+            break
 
     # Handle results
 
