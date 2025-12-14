@@ -37,7 +37,7 @@ def f_walls(a, walls: np.array, box_width, box_length) -> np.array:
 
     # Normals CCW to (x0, y0) -> (x1, y1)
     raw_normals = wall_normals(walls_in_range)
-    normals = raw_normals.T 
+    normals = raw_normals.T
 
     # Get adjusted normals and distances to agents
     # (On the same side of wall as agent)
@@ -72,7 +72,7 @@ def f_walls(a, walls: np.array, box_width, box_length) -> np.array:
             continue
 
         f_2d = b[:2] / np.linalg.norm(b)
-    
+
         force_sum += f_2d
 
     return force_sum
@@ -133,8 +133,6 @@ def filter_walls(x, y, phi, box_width, box_length, walls):
     rect_line_3 = np.array([[box_length, -box_width / 2], [0, -box_width / 2]])
     rect_line_4 = np.array([[0, -box_width / 2], [0, box_width / 2]])
 
-
-
     filtered_walls = []
     for i in range(np.size(x1_rotated)):
         x1 = x1_rotated[i]
@@ -145,17 +143,17 @@ def filter_walls(x, y, phi, box_width, box_length, walls):
 
         # Are any of the points inside the range?
         if (
-            x1 >= 0,
-            x1 <= box_length,
-            y1 >= -box_width / 2,
-            y1 <= box_width / 2,
+            x1 >= 0
+            and x1 <= box_length
+            and y1 >= -box_width / 2
+            and y1 <= box_width / 2
         ):
             filtered_walls.append(walls[i])
         elif (
-            x2 >= 0,
-            x2 <= box_length,
-            y2 >= -box_width / 2,
-            y2 <= box_width / 2,
+            x2 >= 0
+            and x2 <= box_length
+            and y2 >= -box_width / 2
+            and y2 <= box_width / 2
         ):
             filtered_walls.append(walls[i])
 
@@ -171,6 +169,7 @@ def filter_walls(x, y, phi, box_width, box_length, walls):
 
     return np.array(filtered_walls)
 
+
 def f_other_agents(
     agent_state: np.array, agent_positions: np.array, Di_length: float, Di_width: float
 ) -> np.array:
@@ -184,7 +183,7 @@ def f_other_agents(
     """
     if agent_positions.size == 0:
         return np.array([0.0, 0.0])
-    
+
     # --- agent velocity / direction ---
     v_agent = agent_state[2]
     phi_agent = agent_state[3]
@@ -196,49 +195,49 @@ def f_other_agents(
 
     # --- basis vectors ---
     fwd = agent_dir / (np.linalg.norm(agent_dir) + 1e-9)  # unit forward
-    side = np.array([-fwd[1], fwd[0]])                    # unit "left"
+    side = np.array([-fwd[1], fwd[0]])  # unit "left"
 
     # --- vectors from agent to others ---
     vectors_to_others = agent_positions[:, :2] - agent_state[:2]
     dist_to_others = np.linalg.norm(vectors_to_others, axis=1)
 
     # --- projections ---
-    forward_dist = vectors_to_others @ fwd   # along forward
-    side_dist    = vectors_to_others @ side  # along left
+    forward_dist = vectors_to_others @ fwd  # along forward
+    side_dist = vectors_to_others @ side  # along left
 
     # --- filter inside influence rectangle ---
-    in_front     = forward_dist > 0
-    within_long  = forward_dist < Di_length
+    in_front = forward_dist > 0
+    within_long = forward_dist < Di_length
     within_width = np.abs(side_dist) < (Di_width / 2.0)
     mask = in_front & within_long & within_width
 
     if not np.any(mask):
         return np.array([0.0, 0.0])
 
-    idx        = np.where(mask)[0]
+    idx = np.where(mask)[0]
     neighbours = agent_positions[mask]
 
     # --- neighbour velocities ---
-    v_neighbours   = neighbours[:, 2]
+    v_neighbours = neighbours[:, 2]
     phi_neighbours = neighbours[:, 3]
-    vx_neighbours  = v_neighbours * np.cos(phi_neighbours)
-    vy_neighbours  = v_neighbours * np.sin(phi_neighbours)
+    vx_neighbours = v_neighbours * np.cos(phi_neighbours)
+    vy_neighbours = v_neighbours * np.sin(phi_neighbours)
     neighbours_dir = np.stack([vx_neighbours, vy_neighbours], axis=1)
 
     # --- relevant relative vectors ---
-    vecs      = vectors_to_others[idx]          # (N, 2)
-    d         = dist_to_others[idx]             # (N,)
-    side_sel  = side_dist[idx]                  # (N,)
+    vecs = vectors_to_others[idx]  # (N, 2)
+    d = dist_to_others[idx]  # (N,)
+    side_sel = side_dist[idx]  # (N,)
 
     # --- tangential directions (robust variant) ---
-    tangentials = np.zeros_like(vecs)           # (N, 2)
-    side_threshold = 0.05                       # "nästan rakt fram"-tröskel, tweaka vid behov
+    tangentials = np.zeros_like(vecs)  # (N, 2)
+    side_threshold = 0.05  # "nästan rakt fram"-tröskel, tweaka vid behov
 
     agent_dir_3d = np.array([fwd[0], fwd[1], 0.0])
 
     for k in range(len(vecs)):
         rel = vecs[k]
-        sd  = side_sel[k]
+        sd = side_sel[k]
 
         if abs(sd) > side_threshold:
             # använd din korsprodukt–tangent som i HiDAC
@@ -247,10 +246,10 @@ def f_other_agents(
             num2d = num[:2]
             nrm = np.linalg.norm(num2d)
             if nrm > 1e-9:
-                tang = num2d / nrm     # normaliserad tangent
+                tang = num2d / nrm  # normaliserad tangent
             else:
                 # om den blir degenererad ändå → fallback
-                tang = -side          # t.ex. alltid "sväng höger"
+                tang = -side  # t.ex. alltid "sväng höger"
         else:
             # fallback: andra agenten nästan rakt fram → välj alltid samma sida
             # t.ex. alltid sväng åt höger (dvs motsatt "left"-vektor)
@@ -270,7 +269,13 @@ def f_other_agents(
     return f_others
 
 
-def f_repulsion_other_agents(agent_state: np.array, agent_radius: float, agent_epsilon: float, agent_positions: np.array,others_radius: np.array):
+def f_repulsion_other_agents(
+    agent_state: np.array,
+    agent_radius: float,
+    agent_epsilon: float,
+    agent_positions: np.array,
+    others_radius: np.array,
+):
     """
     Computes repulsion force from nearby agents (overlap zone only)
 
@@ -283,13 +288,13 @@ def f_repulsion_other_agents(agent_state: np.array, agent_radius: float, agent_e
     """
     if agent_positions.size == 0:
         return np.array([0.0, 0.0])
-    
+
     # position of agent i
     pos_i = agent_state[:2]
 
     # vector from others to agent i
-    vectors = pos_i - agent_positions[:, :2]               
-    distances = np.linalg.norm(vectors, axis=1)           
+    vectors = pos_i - agent_positions[:, :2]
+    distances = np.linalg.norm(vectors, axis=1)
 
     # repulsion threshold for each other agent
     repulsion_distances = agent_radius + others_radius + agent_epsilon
@@ -298,26 +303,33 @@ def f_repulsion_other_agents(agent_state: np.array, agent_radius: float, agent_e
     mask = distances < repulsion_distances
     if not np.any(mask):
         return np.array([0.0, 0.0])
-    
+
     # filter
-    vectors = vectors[mask] # (pi-pj)
-    distances = distances[mask] # dji
-    repulsion_distances = repulsion_distances[mask] # ri + eps + rj
+    vectors = vectors[mask]  # (pi-pj)
+    distances = distances[mask]  # dji
+    repulsion_distances = repulsion_distances[mask]  # ri + eps + rj
 
     # compute repulsion
-    overlap = repulsion_distances - distances # ri + eps + rj - dji
+    overlap = repulsion_distances - distances  # ri + eps + rj - dji
     magnitudes = overlap / (distances + 1e-9)
 
     # final repulsion forces for each agent
-    forces = vectors * (magnitudes[:, None])  
+    forces = vectors * (magnitudes[:, None])
 
-    # total repulsion 
+    # total repulsion
     return np.sum(forces, axis=0)
 
 
-def f_repulsion_walls(agent_state: np.array, agent_radius: float, agent_epsilon: float, box_width: float, box_length: float,walls: np.array) -> np.array:
+def f_repulsion_walls(
+    agent_state: np.array,
+    agent_radius: float,
+    agent_epsilon: float,
+    box_width: float,
+    box_length: float,
+    walls: np.array,
+) -> np.array:
     """
-    computes the repulsion forces from the walls that are close 
+    computes the repulsion forces from the walls that are close
 
     :x: Agent's x-position
     :y: Agent's y-position
@@ -328,13 +340,12 @@ def f_repulsion_walls(agent_state: np.array, agent_radius: float, agent_epsilon:
 
     x, y, _, phi = agent_state
     pos = np.array([x, y])
-    #fwd = np.array([np.cos(phi), np.sin(phi)])
+    # fwd = np.array([np.cos(phi), np.sin(phi)])
 
     # filter walls to only close by
     candidate_walls = filter_walls(x, y, phi, box_width, box_length, walls)
     if candidate_walls.size == 0:
         return np.array([0.0, 0.0])
-
 
     F_total = np.array([0.0, 0.0])
     personal_radius = agent_radius + agent_epsilon
@@ -348,13 +359,15 @@ def f_repulsion_walls(agent_state: np.array, agent_radius: float, agent_epsilon:
         # closest point on wall:
         AP = pos - A
         wall_squared_length = np.dot(AB, AB)
-        proj = np.dot(AP, AB) /(wall_squared_length + 1e-12) # projection of position to wall
-        proj_cut = np.clip(proj, 0.0, 1.0) # must be between 0= A and B = 1
-        closest = A + proj_cut * AB      # closest point on wall
-        vec = pos - closest              # the vector from the closest point on wall to the agent
-        dist = np.linalg.norm(vec)       # distance used for the repulsion force
-        #forward = np.dot(closest - pos, fwd)
-        #if forward < 0:
+        proj = np.dot(AP, AB) / (
+            wall_squared_length + 1e-12
+        )  # projection of position to wall
+        proj_cut = np.clip(proj, 0.0, 1.0)  # must be between 0= A and B = 1
+        closest = A + proj_cut * AB  # closest point on wall
+        vec = pos - closest  # the vector from the closest point on wall to the agent
+        dist = np.linalg.norm(vec)  # distance used for the repulsion force
+        # forward = np.dot(closest - pos, fwd)
+        # if forward < 0:
         #  continue
 
         # only consider tgose within personal radius
@@ -362,7 +375,7 @@ def f_repulsion_walls(agent_state: np.array, agent_radius: float, agent_epsilon:
             continue  # no repulsion from wall
 
         # normalised normal
-        n_wi = vec / (dist + 1e-9)
+        n_wi = vec / (dist + 1e-3)
 
         # eq 11
         overlap = personal_radius - dist
@@ -374,33 +387,34 @@ def f_repulsion_walls(agent_state: np.array, agent_radius: float, agent_epsilon:
     return F_total
 
 
-def f_repulsion(agent_state: np.array, agent_radius: float, agent_epsilon: float, agent_positions: np.array, others_radius: np.array, walls: np.array, box_width: float, box_length: float, lam_if_walls: float = 0.3, lam_default: float = 1.0 ) -> np.array:
+def f_repulsion(
+    agent_state: np.array,
+    agent_radius: float,
+    agent_epsilon: float,
+    agent_positions: np.array,
+    others_radius: np.array,
+    walls: np.array,
+    box_width: float,
+    box_length: float,
+    lam_if_walls: float = 0.3,
+    lam_default: float = 1.0,
+) -> np.array:
 
     # repulsion from other agents
     F_agents = f_repulsion_other_agents(
-        agent_state,
-        agent_radius,
-        agent_epsilon,
-        agent_positions,
-        others_radius
+        agent_state, agent_radius, agent_epsilon, agent_positions, others_radius
     )
 
     # repulsion from walls
     F_walls = f_repulsion_walls(
-        agent_state,
-        agent_radius,
-        agent_epsilon,
-        box_width,
-        box_length,
-        walls
+        agent_state, agent_radius, agent_epsilon, box_width, box_length, walls
     )
 
     # set lambda: decrease agent-repulsion if wall repulsion exists
     if np.linalg.norm(F_walls) > 0.0:
-        lam = lam_if_walls   
+        lam = lam_if_walls
     else:
-        lam = lam_default    
+        lam = lam_default
 
     F_total = F_walls + lam * F_agents
     return F_total
-

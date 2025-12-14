@@ -1,152 +1,72 @@
-from tkinter import *
+from tkinter import Canvas, Tk
 from agent import MovementAgent
-import numpy as np
+from vehicle import SimSpace
 
 
-def win_coords(r, arena_size, window_size):
-    return r / arena_size * window_size
+def setup_win():
+
+    window_size = 600
+    tk = Tk()
+    tk.geometry(f"{window_size + 20}x{window_size + 20}")
+    tk.configure(background="#000000")
+    canvas = Canvas(tk, background="#ECECEC")
+    tk.attributes("-topmost", 0)
+    canvas.place(x=10, y=10, height=window_size, width=window_size)
+    return window_size, tk, canvas
 
 
-def base_agent_blob(
-    canvas: Canvas,
-    a: MovementAgent,
-    window_width,
-    window_height,
-    arena_width,
-    arena_height,
+# --- world → screen mapping ---
+world_min_x, world_max_x = -2.0, 20.0
+world_min_y, world_max_y = -5.0, 10.0
+
+
+def world_to_screen(x, y, window_size):
+    sx = (x - world_min_x) / (world_max_x - world_min_x) * window_size
+    sy = window_size - (y - world_min_y) / (world_max_y - world_min_y) * window_size
+    return sx, sy
+
+
+def world_radius_to_pixels(r, window_size):
+    return r / (world_max_x - world_min_x) * window_size
+
+
+def draw_scene(
+    vehicle: SimSpace,
+    entering_agents: list["MovementAgent"],
+    exiting_agents,
+    still_agents,
+    canvas,
+    window_size,
 ):
-    dummy_size = 0.3
-    canvas.create_oval(
-        win_coords(a.x - dummy_size / 2, arena_width, window_width),
-        win_coords(a.y - dummy_size / 2, arena_height, window_height),
-        win_coords(a.x + dummy_size / 2, arena_width, window_width),
-        win_coords(a.y + dummy_size / 2, arena_height, window_height),
-        outline="#00C0C0",
-        fill="#00C0C0",
-    )
+    canvas.delete("all")
 
+    walls = vehicle.get_collision_wall_segments()
 
-def move_agent_blob(
-    canvas: Canvas,
-    blob,
-    a: MovementAgent,
-    window_width,
-    window_height,
-    arena_width,
-    arena_height,
-):
-    dummy_size = 0.3
-    canvas.coords(
-        blob,
-        win_coords(a.x - dummy_size / 2, arena_width, window_width),
-        win_coords(a.y - dummy_size / 2, arena_height, window_height),
-        win_coords(a.x + dummy_size / 2, arena_width, window_width),
-        win_coords(a.y + dummy_size / 2, arena_height, window_height),
-    )
+    # draw walls
+    for w in walls:
+        (x1, y1), (x2, y2) = w
+        sx1, sy1 = world_to_screen(x1, y1, window_size)
+        sx2, sy2 = world_to_screen(x2, y2, window_size)
+        canvas.create_line(sx1, sy1, sx2, sy2, fill="black", width=3)
 
+    # draw agents
+    for i, ag in enumerate(entering_agents):
+        sx, sy = world_to_screen(ag.x, ag.y, window_size)
+        r_pix = world_radius_to_pixels(ag.radius, window_size)
 
-def base_agent_arrow(
-    canvas: Canvas,
-    a: MovementAgent,
-    window_width,
-    window_height,
-    arena_width,
-    arena_height,
-):
+        canvas.create_oval(sx - r_pix, sy - r_pix, sx + r_pix, sy + r_pix, fill="green")
+        canvas.create_text(sx, sy - 10, text=str(i + 1), fill="black")
 
-    velocity_scale = 1
-    end_x = a.x + np.cos(a.angle) * a.v * velocity_scale
-    end_y = a.y + np.sin(a.angle) * a.v * velocity_scale
+    for i, ag in enumerate(exiting_agents):
+        sx, sy = world_to_screen(ag.x, ag.y, window_size)
+        r_pix = world_radius_to_pixels(ag.radius, window_size)
 
-    canvas.create_line(
-        win_coords(a.x, arena_width, window_width),
-        win_coords(a.y, arena_height, window_height),
-        win_coords(end_x, arena_width, window_width),
-        win_coords(end_y, arena_height, window_height),
-        fill="#0000ff",
-        width=2,
-        arrow=LAST,
-    )
+        canvas.create_oval(sx - r_pix, sy - r_pix, sx + r_pix, sy + r_pix, fill="red")
+        canvas.create_text(sx, sy - 10, text=str(i + 1), fill="black")
 
+    for i, ag in enumerate(still_agents):
+        sx, sy = world_to_screen(ag.x, ag.y, window_size)
+        r_pix = world_radius_to_pixels(ag.radius, window_size)
 
-def move_agent_arrow(
-    canvas: Canvas,
-    arrow,
-    a: MovementAgent,
-    window_width,
-    window_height,
-    arena_width,
-    arena_height,
-):
-    velocity_scale = 1
-    end_x = a.x + np.cos(a.angle) * a.v * velocity_scale
-    end_y = a.y + np.sin(a.angle) * a.v * velocity_scale
-
-    canvas.coords(
-        arrow,
-        win_coords(a.x, arena_width, window_width),
-        win_coords(a.y, arena_height, window_height),
-        win_coords(end_x, arena_width, window_width),
-        win_coords(end_y, arena_height, window_height),
-    )
-
-
-def base_wall(
-    canvas: Canvas,
-    wall_position,
-    window_width,
-    window_height,
-    arena_width,
-    arena_height,
-):
-    x0 = wall_position[0][0]
-    y0 = wall_position[0][1]
-    x1 = wall_position[1][0]
-    y1 = wall_position[1][1]
-
-    canvas.create_line(
-        win_coords(x0, arena_width, window_width),
-        win_coords(y0, arena_height, window_height),
-        win_coords(x1, arena_width, window_width),
-        win_coords(y1, arena_height, window_height),
-        width=3,
-        fill="#808080",
-    )
-
-
-#
-#
-# Dummy code
-#
-#
-
-
-#
-# Dummy state
-#
-
-test_agent = MovementAgent(1, 1, 0)
-test_wall = np.array([[2, 0], [2, 2]])
-
-
-#
-# Dummy rendering
-#
-
-window_size = 600
-arena_size = 10
-
-tk = Tk()
-tk.geometry(f"{window_size + 20}x{window_size+20}")
-tk.configure(background="#000000")
-
-canvas = Canvas(tk, background="#ECECEC")
-tk.attributes("-topmost", 0)
-canvas.place(x=10, y=10, height=window_size, width=window_size)
-
-# Draw dummy state
-base_agent_blob(canvas, test_agent, window_size, window_size, arena_size, arena_size)
-base_agent_arrow(canvas, test_agent, window_size, window_size, arena_size, arena_size)
-base_wall(canvas, test_wall, window_size, window_size, arena_size, arena_size)
-
-tk.mainloop()  # Release animation handle (close window to finish).
+        canvas.create_oval(sx - r_pix, sy - r_pix, sx + r_pix, sy + r_pix, fill="blue")
+        canvas.create_text(sx, sy - 10, text=str(i + 1), fill="black")
