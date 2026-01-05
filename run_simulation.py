@@ -1,15 +1,8 @@
-from tkinter import Canvas, Tk
 from real_time_visualization import draw_scene, setup_win
 from vehicle_definitions import articulated_bus
 from vehicle import SimSpace
 from agent import MovementAgent
-import matplotlib.pyplot as plt
-from matplotlib.patches import Ellipse, Rectangle
 import numpy as np
-
-
-def run_simulation(vehicle, current_count, entering_count, exiting_count):
-    pass
 
 
 def init_current_passengers(vehicle: SimSpace, count):
