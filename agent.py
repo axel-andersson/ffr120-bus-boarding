@@ -208,7 +208,9 @@ class MovementAgent:
                 continue
 
             # must be in front
-            if np.dot(vec, fwd) / (np.linalg.norm(vec) + 1e-9) < 0.7: # this is a cone of approx 45 degrees
+            if (
+                np.dot(vec, fwd) / (np.linalg.norm(vec) + 1e-9) < 0.7
+            ):  # this is a cone of approx 45 degrees
                 continue
 
             # ---- check if same dircetion: dot > 0 ----

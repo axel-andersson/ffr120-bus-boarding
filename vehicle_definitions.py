@@ -123,6 +123,7 @@ def articulated_bus():
     ss = SimSpace(walls, [d1, d2, d3], all_seats, obstacles, handrails)
     return ss
 
+
 """
 
 ss = articulated_bus()

@@ -79,7 +79,6 @@ agent4.target_queue = targets
 agents = [agent1, agent2, agent3, agent4]
 
 
-
 # start vel
 for ag in agents:
     ag.v = 0.1
