@@ -20,7 +20,7 @@ def init_current_passengers(vehicle: SimSpace, count):
             radius=0.22,
             epsilon=0.1,
             box_length=1.5,
-            box_width=0.7,
+            box_width=1,
             dt=0.1,
         )
 
@@ -290,7 +290,7 @@ def visualize_bus_dynamics(
         all_agents = entering_agents + exiting_agents + still_agents
 
         walls = np.array(vehicle.get_collision_wall_segments())
-        
+
         if step == OPENING_STEP:
             vehicle.doors_open = True
             for p in waiting_passengers:

@@ -74,10 +74,10 @@ class VehicleDoor:
         outside_wps = self.get_outside_waypoints()
         inside_wp = self.get_inside_waypoint()
 
-        ax.plot(outside_wps[0][0], outside_wps[0][1], "x", ms=8)
-        ax.plot(outside_wps[1][0], outside_wps[1][1], "x", ms=8)
-        ax.plot(outside_wps[2][0], outside_wps[2][1], "x", ms=8)
-        ax.plot(inside_wp[0], inside_wp[1], "x", ms=8)
+        #ax.plot(outside_wps[0][0], outside_wps[0][1], "x", ms=8)
+        #ax.plot(outside_wps[1][0], outside_wps[1][1], "x", ms=8)
+        #ax.plot(outside_wps[2][0], outside_wps[2][1], "x", ms=8)
+        #ax.plot(inside_wp[0], inside_wp[1], "x", ms=8)
 
 
 class VehicleWalls:
@@ -337,7 +337,7 @@ class Handrail:
             [self.start_x, self.end_x],
             [self.start_y, self.end_y],
             "--",
-            color="#fff820",
+            color="#2200ff",
             lw=1,
         )
 
