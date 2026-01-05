@@ -468,7 +468,7 @@ def evaluate_bus_dynamics(
         print("RUN DID NOT COMPLETE")
         return
 
-    elapsed_time = complete_step * step_size
+    elapsed_time = (complete_step - OPENING_STEP) * step_size
 
     with open(file_name, "a") as f:
         np.savetxt(f, [elapsed_time], delimiter=",", fmt="%.6f")
