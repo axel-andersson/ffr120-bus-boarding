@@ -329,7 +329,7 @@ def f_repulsion_walls(
     walls: np.array,
 ) -> np.array:
     """
-    computes the repulsion forces from the walls that are close
+    Computes the repulsion forces from the walls that are close
 
     :x: Agent's x-position
     :y: Agent's y-position
@@ -399,6 +399,9 @@ def f_repulsion(
     lam_if_walls: float = 0.3,
     lam_default: float = 1.0,
 ) -> np.array:
+    """
+    Calculates the total repulsion effects
+    """
 
     # repulsion from other agents
     F_agents = f_repulsion_other_agents(
