@@ -74,10 +74,10 @@ class VehicleDoor:
         outside_wps = self.get_outside_waypoints()
         inside_wp = self.get_inside_waypoint()
 
-        #ax.plot(outside_wps[0][0], outside_wps[0][1], "x", ms=8)
-        #ax.plot(outside_wps[1][0], outside_wps[1][1], "x", ms=8)
-        #ax.plot(outside_wps[2][0], outside_wps[2][1], "x", ms=8)
-        #ax.plot(inside_wp[0], inside_wp[1], "x", ms=8)
+        # ax.plot(outside_wps[0][0], outside_wps[0][1], "x", ms=8)
+        # ax.plot(outside_wps[1][0], outside_wps[1][1], "x", ms=8)
+        # ax.plot(outside_wps[2][0], outside_wps[2][1], "x", ms=8)
+        # ax.plot(inside_wp[0], inside_wp[1], "x", ms=8)
 
 
 class VehicleWalls:
@@ -127,12 +127,12 @@ class VehicleWalls:
         door_center = np.array([door.x, door.y])
 
         # Normalize and split segments by orientation
-        segs = normalize_segments(self.segments)
+        segments = normalize_segments(self.segments)
 
         horizontals = {}
         verticals = {}
 
-        for p0, p1 in segs:
+        for p0, p1 in segments:
             x0, y0 = p0
             x1, y1 = p1
             if y0 == y1:
@@ -141,7 +141,6 @@ class VehicleWalls:
                 verticals.setdefault(x0, []).append((y0, y1))
 
         # Determine orientation of the door's wall
-        # (Axis-aligned walls → either horizontal or vertical segment must contain the door)
         door_x, door_y = door_center
 
         affected_orientation = None
@@ -180,7 +179,7 @@ class VehicleWalls:
         full = intervals + []
         full.append(
             door_interval
-        )  # This adds overlap → removed by split_remove_overlaps
+        )  # This adds overlap which is removed by split_remove_overlaps
 
         cleaned = split_intervals_remove_overlaps(full)
 
@@ -208,14 +207,6 @@ class VehicleWalls:
                 new_segments.append([[x, a], [x, b]])
 
         self.segments = new_segments
-
-        def draw(self, ax: plt.Axes):
-            for segment in self.segments:
-                x0 = segment[0][0]
-                x1 = segment[1][0]
-                y0 = segment[0][1]
-                y1 = segment[1][1]
-                ax.plot([x0, x1], [y0, y1], color="#a0a0a0", lw=3)
 
     def draw(self, ax: plt.Axes):
         for segment in self.segments:

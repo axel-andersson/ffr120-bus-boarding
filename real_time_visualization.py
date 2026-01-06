@@ -15,7 +15,7 @@ def setup_win():
     return window_size, tk, canvas
 
 
-# --- world → screen mapping ---
+# world to screen mapping
 world_min_x, world_max_x = -2.0, 20.0
 world_min_y, world_max_y = -5.0, 10.0
 
@@ -45,28 +45,48 @@ def draw_scene(
     # draw walls
     for w in walls:
         (x1, y1), (x2, y2) = w
-        sx1, sy1 = world_to_screen(x1, y1, window_size)
-        sx2, sy2 = world_to_screen(x2, y2, window_size)
-        canvas.create_line(sx1, sy1, sx2, sy2, fill="black", width=3)
+        screen_x1, screen_y1 = world_to_screen(x1, y1, window_size)
+        screen_x2, screen_y2 = world_to_screen(x2, y2, window_size)
+        canvas.create_line(
+            screen_x1, screen_y1, screen_x2, screen_y2, fill="black", width=3
+        )
 
     # draw agents
     for i, ag in enumerate(entering_agents):
-        sx, sy = world_to_screen(ag.x, ag.y, window_size)
+        screen_x, screen_y = world_to_screen(ag.x, ag.y, window_size)
         r_pix = world_radius_to_pixels(ag.radius, window_size)
 
-        canvas.create_oval(sx - r_pix, sy - r_pix, sx + r_pix, sy + r_pix, fill="green")
-        canvas.create_text(sx, sy - 10, text=str(i + 1), fill="black")
+        canvas.create_oval(
+            screen_x - r_pix,
+            screen_y - r_pix,
+            screen_x + r_pix,
+            screen_y + r_pix,
+            fill="green",
+        )
+        canvas.create_text(screen_x, screen_y - 10, text=str(i + 1), fill="black")
 
     for i, ag in enumerate(exiting_agents):
-        sx, sy = world_to_screen(ag.x, ag.y, window_size)
+        screen_x, screen_y = world_to_screen(ag.x, ag.y, window_size)
         r_pix = world_radius_to_pixels(ag.radius, window_size)
 
-        canvas.create_oval(sx - r_pix, sy - r_pix, sx + r_pix, sy + r_pix, fill="red")
-        canvas.create_text(sx, sy - 10, text=str(i + 1), fill="black")
+        canvas.create_oval(
+            screen_x - r_pix,
+            screen_y - r_pix,
+            screen_x + r_pix,
+            screen_y + r_pix,
+            fill="red",
+        )
+        canvas.create_text(screen_x, screen_y - 10, text=str(i + 1), fill="black")
 
     for i, ag in enumerate(still_agents):
-        sx, sy = world_to_screen(ag.x, ag.y, window_size)
+        screen_x, screen_y = world_to_screen(ag.x, ag.y, window_size)
         r_pix = world_radius_to_pixels(ag.radius, window_size)
 
-        canvas.create_oval(sx - r_pix, sy - r_pix, sx + r_pix, sy + r_pix, fill="blue")
-        canvas.create_text(sx, sy - 10, text=str(i + 1), fill="black")
+        canvas.create_oval(
+            screen_x - r_pix,
+            screen_y - r_pix,
+            screen_x + r_pix,
+            screen_y + r_pix,
+            fill="blue",
+        )
+        canvas.create_text(screen_x, screen_y - 10, text=str(i + 1), fill="black")

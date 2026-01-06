@@ -9,13 +9,13 @@ def init_current_passengers(vehicle: SimSpace, count):
     agents = []
     standing_positions = []
     for _ in range(count):
-        seat, target_pos = vehicle.find_boarding_target()
+        seat, target_position = vehicle.find_boarding_target()
 
-        agent_pos = target_pos if seat is None else seat.get_center()
+        agent_position = target_position if seat is None else seat.get_center()
 
         agent = MovementAgent(
-            agent_pos[0],
-            agent_pos[1],
+            agent_position[0],
+            agent_position[1],
             0,
             radius=0.22,
             epsilon=0.1,
@@ -29,7 +29,7 @@ def init_current_passengers(vehicle: SimSpace, count):
             agent.is_sitting = True
             agent.mounting_point = seat.mounting_point
         else:
-            standing_positions.append(agent_pos)
+            standing_positions.append(agent_position)
             vehicle.update_standing_attractiveness(standing_positions)
 
         agents.append(agent)
@@ -135,13 +135,15 @@ def prime_exiting_passenger(
 
         pathfind_start_point = [passenger.x, passenger.y]
         pass
+
     # Dismount seat if sitting
     else:
         passenger_seat.is_occupied = False
         pathfind_start_point = passenger.mounting_point
 
     target_pos = get_random_rect_point(platform_rect)
-    # Make them walk further away
+
+    # Make them walk further away as not to stop in the middle of the crowd
     target_pos[1] -= platform_rect[1][1] - platform_rect[0][1]
 
     # Get two-parted exit path

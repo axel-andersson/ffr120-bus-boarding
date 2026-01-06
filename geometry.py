@@ -1,5 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
 
 
 def line_intersection(line_1, line_2):
@@ -54,6 +53,10 @@ def line_intersection(line_1, line_2):
 
 
 def point_line_intersects(point, line):
+    """
+    Finds whether a line and a point intersects
+    """
+
     x_A = line[0][0]
     y_A = line[0][1]
     x_B = line[1][0]
@@ -63,8 +66,8 @@ def point_line_intersects(point, line):
     y_C = point[1]
 
     # Point is on extended line ONLY if cross product is 0
-    cp = np.cross(np.array([x_A, y_A, 0]), np.array([x_C, y_C, 0]))
-    if np.all(cp != 0):
+    cross_product = np.cross(np.array([x_A, y_A, 0]), np.array([x_C, y_C, 0]))
+    if np.all(cross_product != 0):
         return False
 
     # Point is on line if it can be paremetrized
@@ -81,22 +84,22 @@ def point_line_intersects(point, line):
         raise "Line segment has no length."
 
 
-import numpy as np
-
-
 def point_to_segment_distance(point, line):
+    """
+    Finds shortest distance between a point and a line segment.
+    """
 
     a = line[0]
     b = line[1]
     a_to_point = point - a
     a_to_b = b - a
-    ab_len_sq = np.dot(a_to_b, a_to_b)
+    ab_length_sq = np.dot(a_to_b, a_to_b)
 
     # Handle if line is point
-    if ab_len_sq == 0:
+    if ab_length_sq == 0:
         return np.linalg.norm(point - a)
 
-    t = np.dot(a_to_point, a_to_b) / ab_len_sq
+    t = np.dot(a_to_point, a_to_b) / ab_length_sq
     t = np.clip(t, 0, 1)
 
     closest = a + t * a_to_b
