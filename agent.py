@@ -10,7 +10,9 @@ import numpy as np
 
 class MovementAgent:
 
-    # ─── Initialization ─────────────────────────────
+    #
+    # Initialization
+    #
     def __init__(self, x, y, angle, radius, epsilon, box_length, box_width, dt=0.1):
         # Force weights
         self.attractor_weight = 5
@@ -67,7 +69,7 @@ class MovementAgent:
         self.stop_timer = 0
         self.stress = False
 
-        # Queuing behavior (influence disk )
+        # Queuing behavior (influence disk)
         self.waiting_rule = False
         self.wait_timer = 0
         self.wait_disk_radius = 0.5
@@ -79,31 +81,39 @@ class MovementAgent:
         self.v_max = self.v_far
         self.brake_radius = 1.0  # Start slowing down within this distance
 
-    # ─── Agent state as array ───────────────────────
+    #
+    # Agent state as array
+    #
     def state(self):
         return np.array([self.x, self.y, self.v, self.angle])
 
-    # ─── Change attraction poiint if prevoius is reached ────
+    #
+    # Change attraction poiint if prevoius is reached
+    #
     def set_target(self):
 
-        n = len(self.target_queue)
+        queue_length = len(self.target_queue)
 
-        if n == 0:
+        if queue_length == 0:
             return self.target, self.target_queue
 
         self.target = self.target_queue[0]
         self.target_queue = self.target_queue[1:]
         return self.target, self.target_queue
 
-    # ─── Stop if  position is at ticket control position ────
+    #
+    # Stop if position is at ticket control position
+    #
     def check_ticket(self):
 
-        dist = np.abs(self.ticket_check_y - self.y)
+        distance = np.abs(self.ticket_check_y - self.y)
 
-        if dist < self.ticket_check_radius:
+        if distance < self.ticket_check_radius:
             return True
 
-    # ─── Calculate movement and repulsion forces ────
+    #
+    # Calculate movement and repulsion forces
+    #
     def movement_force(self, walls, agents: list["MovementAgent"]):
         state = self.state()
 
@@ -155,10 +165,12 @@ class MovementAgent:
 
         return F_to_vec, repulsion, f_rep_agents_modified
 
-    # ─── Handle repulsion-based stopping rule ───────
+    #
+    # Handle repulsion-based stopping rule
+    #
     def _update_stopping_rule(self, f_rep_agents: np.array):
         v_vec = np.array([np.cos(self.angle), np.sin(self.angle)]) * self.v
-        rep_norm = np.linalg.norm(f_rep_agents)
+        repulsion_norm = np.linalg.norm(f_rep_agents)
 
         # If stop rule already triggered, calculate timer and return
         if self.stopping_rule:
@@ -173,16 +185,20 @@ class MovementAgent:
 
         # Otherwise trigger stop
         if (
-            rep_norm > self.repulsion_stopping_threshold
+            repulsion_norm > self.repulsion_stopping_threshold
             and np.dot(f_rep_agents, v_vec) < 0
             and not self.stress
             and np.random.rand() < self.stopping_probability
         ):
             self.stopping_rule = True
-            duration_s = np.random.uniform(*self.stopping_duration_range)  # to seconds
-            self.stop_timer = max(1, int(duration_s / self.dt))
+            stop_duration = np.random.uniform(
+                *self.stopping_duration_range
+            )  # to seconds
+            self.stop_timer = max(1, int(stop_duration / self.dt))
 
-    # ─── Handle waiting rule based on influence disk ───────
+    #
+    # Handle waiting rule based on influence disk
+    #
     def check_waiting_zone(self, agents: list["MovementAgent"]):
 
         if self.is_entering:
@@ -192,55 +208,59 @@ class MovementAgent:
         else:
             waitable_agents = []
 
-        my_pos = np.array([self.x, self.y])
-        fwd = np.array([np.cos(self.angle), np.sin(self.angle)])
+        my_position = np.array([self.x, self.y])
+        forward_vector = np.array([np.cos(self.angle), np.sin(self.angle)])
 
         for other in waitable_agents:
             if other is self:
                 continue
 
-            other_pos = np.array([other.x, other.y])
-            vec = other_pos - my_pos
-            dist = np.linalg.norm(vec)
+            other_position = np.array([other.x, other.y])
+            position_vector_delta = other_position - my_position
+            distance = np.linalg.norm(position_vector_delta)
 
             # distance check
-            if dist > self.wait_disk_radius:
+            if distance > self.wait_disk_radius:
                 continue
 
             # must be in front
             if (
-                np.dot(vec, fwd) / (np.linalg.norm(vec) + 1e-9) < 0.7
+                np.dot(position_vector_delta, forward_vector)
+                / (np.linalg.norm(position_vector_delta) + 1e-9)
+                < 0.7
             ):  # this is a cone of approx 45 degrees
                 continue
 
-            # ---- check if same dircetion: dot > 0 ----
-            other_fwd = np.array([np.cos(other.angle), np.sin(other.angle)])
-            if np.dot(fwd, other_fwd) > 0:
+            # check if same dircetion: dot > 0
+            other_forward_vector = np.array([np.cos(other.angle), np.sin(other.angle)])
+            if np.dot(forward_vector, other_forward_vector) > 0:
                 return True
 
         return False
 
-    # ─── Main update per timestep ───────────────────
+    #
+    # Main update per timestep
+    #
     def update(self, walls: np.array, agents: list["MovementAgent"]):
 
         # Do not move people sitting down
         if self.is_sitting:
             return
 
-        pos = np.array([self.x, self.y])
-        to_target = self.target - pos
-        dist = np.linalg.norm(to_target)
+        position = np.array([self.x, self.y])
+        to_target = self.target - position
+        distance_to_target = np.linalg.norm(to_target)
 
-        if dist < 0.5:
+        if distance_to_target < 0.5:
             self.target, self.target_queue = self.set_target()
-            to_target = self.target - pos
-            dist = np.linalg.norm(to_target)
+            to_target = self.target - position
+            distance_to_target = np.linalg.norm(to_target)
 
         is_final_target = len(self.target_queue) == 0
 
         # Adjust v_max based on braking distance, if current target is the final attraction point
-        if dist < self.brake_radius and is_final_target:
-            factor = dist / self.brake_radius
+        if distance_to_target < self.brake_radius and is_final_target:
+            factor = distance_to_target / self.brake_radius
             self.v_max = max(self.v_min, self.v_far * factor)
         else:
             self.v_max = self.v_far
@@ -262,7 +282,7 @@ class MovementAgent:
         # Stop if at goal (last attractor) and also set
         # to move
         stop_radius = self.radius + 0.1
-        if dist < stop_radius and is_final_target:
+        if distance_to_target < stop_radius and is_final_target:
             self.v = 0.0
             self.last_force = np.array([0.0, 0.0])
             self.reached_final_target = True
@@ -296,12 +316,7 @@ class MovementAgent:
             reason.append("WAITING_RULE")
         if self.checking_ticket:
             reason.append("TICKET")
-
-        # precis innan du beräknar alpha:
-        if reason:
-            pass
-            # print(f"Agent debug: x={self.x:.2f}, y={self.y:.2f}, orsaker: {reason}")
-
+            
         # Move as long as not stop because of various reasons
         alpha = (
             0.0
