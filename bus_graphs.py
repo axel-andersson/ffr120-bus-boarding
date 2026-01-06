@@ -3,6 +3,10 @@ from matplotlib import pyplot as plt
 from matplotlib.patches import Rectangle
 import numpy as np
 
+"""
+This script was used for generating the bus figures in the report
+"""
+
 bus = articulated_bus()
 
 rects = bus.standing_area_rectangles()
@@ -19,7 +23,7 @@ for d in bus.doors:
 
 ax = plt.gca()
 bus.draw(ax)
-#bus.draw_technical(ax)
+# bus.draw_technical(ax)
 
 
 for rect in rects:
