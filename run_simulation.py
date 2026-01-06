@@ -1,15 +1,8 @@
-from tkinter import Canvas, Tk
 from real_time_visualization import draw_scene, setup_win
 from vehicle_definitions import articulated_bus
 from vehicle import SimSpace
 from agent import MovementAgent
-import matplotlib.pyplot as plt
-from matplotlib.patches import Ellipse, Rectangle
 import numpy as np
-
-
-def run_simulation(vehicle, current_count, entering_count, exiting_count):
-    pass
 
 
 def init_current_passengers(vehicle: SimSpace, count):
@@ -249,7 +242,6 @@ def visualize_bus_dynamics(
     entering_pasenger_count,
     front_door_only,
     check_tickets,
-    file_name,
 ):
 
     bus = articulated_bus()
@@ -278,13 +270,7 @@ def visualize_bus_dynamics(
         for a in waiting_passengers:
             a.must_check_ticket = True
 
-    MAX_T_STEPS = 1000
-
     OPENING_STEP = 20
-
-    # Used for run termination check
-    exit_offset = 0.5
-    enter_offset = 0.2
 
     # Used for final evaluation
     step_size = 0.1
@@ -300,11 +286,10 @@ def visualize_bus_dynamics(
         last_step,
     ):
         step = last_step
-        if step >= MAX_T_STEPS:
-            return
+
+        all_agents = entering_agents + exiting_agents + still_agents
 
         walls = np.array(vehicle.get_collision_wall_segments())
-        all_agents = entering_agents + exiting_agents + still_agents
 
         if step == OPENING_STEP:
             vehicle.doors_open = True
@@ -313,23 +298,8 @@ def visualize_bus_dynamics(
             for agent in all_agents:
                 agent.target_queue += agent.post_hold_target_queue
 
-        exiting_eval = True
-        entering_eval = True
         for ag in all_agents:
             ag.update(walls, all_agents)
-
-            # Check exiting status
-            if ag.is_exiting and ag.y >= -exit_offset:
-                exiting_eval = False
-
-            # Check entering status
-            if ag.is_entering and ag.y <= enter_offset:
-                entering_eval = False
-
-        if exiting_eval and entering_eval:
-            nonlocal complete_step
-            complete_step = step
-            return
 
         draw_scene(
             vehicle, entering_agents, exiting_agents, still_agents, canvas, window_size
@@ -468,7 +438,7 @@ def evaluate_bus_dynamics(
         print("RUN DID NOT COMPLETE")
         return
 
-    elapsed_time = complete_step * step_size
+    elapsed_time = (complete_step - OPENING_STEP) * step_size
 
     with open(file_name, "a") as f:
         np.savetxt(f, [elapsed_time], delimiter=",", fmt="%.6f")

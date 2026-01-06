@@ -102,7 +102,7 @@ def articulated_bus():
     front_handrails = [
         Handrail([10.1, 2.5], [12.8, 2.5]),
         Handrail([10.1, 2], [12.8, 2]),
-        Handrail([10.1, 1.5], [12.8, 1.5]),
+        Handrail([10.1, 1.5], [11.8, 1.5]),
     ]
 
     # Middle standing area
@@ -122,31 +122,3 @@ def articulated_bus():
 
     ss = SimSpace(walls, [d1, d2, d3], all_seats, obstacles, handrails)
     return ss
-
-"""
-
-ss = articulated_bus()
-ss.doors[0].allow_out = False
-ss.doors[1].allow_out = False
-ss.doors[2].allow_in = False
-
-start = [11, -2]
-end = [2.5, 1.25]
-
-path_in = ss.get_path_out(end, start)
-print(path_in)
-p = np.concat(
-    (np.array([end]), np.array(path_in[0]), np.array(path_in[1]), np.array([start]))
-)
-
-wss = ss.get_collision_wall_segments()
-
-ax = plt.gca()
-
-ss.draw(ax)
-ss.draw_technical(ax)
-ax.set_aspect("equal")
-
-plt.show()
-
-"""

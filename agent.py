@@ -14,7 +14,7 @@ class MovementAgent:
     def __init__(self, x, y, angle, radius, epsilon, box_length, box_width, dt=0.1):
         # Force weights
         self.attractor_weight = 5
-        self.wall_weight = 0.1
+        self.wall_weight = 0.5
         self.other_agents_weight = 2
 
         # Position and movement
@@ -42,11 +42,11 @@ class MovementAgent:
         self.reached_final_target = False
 
         # Ticket control check
-        self.ticket_check_y = 0.8
+        self.ticket_check_y = 1
         self.must_check_ticket = False
         self.ticket_checked = False
         self.checking_ticket = False
-        self.check_ticket_duration_range = (0.5, 2)  # in seconds
+        self.check_ticket_duration_range = (0.5, 1.5)  # in seconds
         self.ticket_check_radius = 0.3
 
         # Movement modifiers
@@ -146,7 +146,7 @@ class MovementAgent:
             others_radius,
         )
 
-        WALKING_PRIORITY = 10
+        WALKING_PRIORITY = 5  # In order to allow for some squeezing, repulsion is reduced for agents currently moving
         f_rep_agents_modified = (
             f_rep_agents / WALKING_PRIORITY
             if self.is_entering or self.is_exiting
@@ -208,7 +208,9 @@ class MovementAgent:
                 continue
 
             # must be in front
-            if np.dot(vec, fwd) / (np.linalg.norm(vec) + 1e-9) < 0.7: # this is a cone of approx 45 degrees
+            if (
+                np.dot(vec, fwd) / (np.linalg.norm(vec) + 1e-9) < 0.7
+            ):  # this is a cone of approx 45 degrees
                 continue
 
             # ---- check if same dircetion: dot > 0 ----
@@ -229,7 +231,7 @@ class MovementAgent:
         to_target = self.target - pos
         dist = np.linalg.norm(to_target)
 
-        if dist < 0.6:
+        if dist < 0.5:
             self.target, self.target_queue = self.set_target()
             to_target = self.target - pos
             dist = np.linalg.norm(to_target)
